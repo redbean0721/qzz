@@ -62,7 +62,8 @@ export async function buildApp(opts: AppOptions = {}) {
     skipOnError: true,
   })
 
-  app.get('/health', async () => {
+  // k8s readiness probe 每 10 秒打一次：不記一般的請求 log，出錯時（warn 以上）照樣記
+  app.get('/health', { logLevel: 'warn' }, async () => {
     await db.execute(sql`select 1`)
     return { ok: true, db: 'up' }
   })
