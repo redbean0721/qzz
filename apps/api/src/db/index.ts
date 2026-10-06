@@ -9,4 +9,4 @@ if (!process.env.DATABASE_URL) {
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL })
 
 export const db = drizzle({ client: pool, schema })
-export { schema }
+export { pool, schema }
