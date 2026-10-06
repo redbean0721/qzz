@@ -24,7 +24,7 @@ test('5xx responses do not leak internal error messages', async () => {
 test('4xx errors from fastify keep their status and message', async () => {
   const badJson = await app.inject({
     method: 'POST',
-    url: '/api/links',
+    url: '/v1/links',
     headers: { 'content-type': 'application/json' },
     payload: '{not json',
   })
@@ -33,7 +33,7 @@ test('4xx errors from fastify keep their status and message', async () => {
 
   const tooLarge = await app.inject({
     method: 'POST',
-    url: '/api/links',
+    url: '/v1/links',
     payload: { url: `https://example.com/${'a'.repeat(2 * 1024 * 1024)}` },
   })
   assert.equal(tooLarge.statusCode, 413)

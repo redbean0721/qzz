@@ -17,7 +17,7 @@ export const linkRoutes: FastifyPluginAsync<RateLimitedRouteOptions> = async (ap
   const createOpts = { config: perMinute(rateLimits.createLink) }
   const deleteOpts = { config: perMinute(rateLimits.delete) }
 
-  app.post('/api/links', createOpts, async (request, reply) => {
+  app.post('/v1/links', createOpts, async (request, reply) => {
     const result = createLinkSchema.safeParse(request.body)
 
     if (!result.success) {
@@ -51,7 +51,8 @@ export const linkRoutes: FastifyPluginAsync<RateLimitedRouteOptions> = async (ap
     return reply.code(201).send(body)
   })
 
-  app.get<{ Params: CodeParams }>('/:code', async (request, reply) => {
+  // qzz.tw/<code> 由前端的 Cloudflare Worker 轉呼叫這條，再把 302 原樣回給使用者
+  app.get<{ Params: CodeParams }>('/v1/links/:code', async (request, reply) => {
     const { code } = request.params
     if (!CODE_PATTERN.test(code)) {
       return reply.code(404).send({ error: 'not found' })
@@ -77,7 +78,7 @@ export const linkRoutes: FastifyPluginAsync<RateLimitedRouteOptions> = async (ap
     return reply.header('cache-control', 'no-store').redirect(link.url, 302)
   })
 
-  app.delete<{ Params: CodeParams }>('/api/links/:code', deleteOpts, async (request, reply) => {
+  app.delete<{ Params: CodeParams }>('/v1/links/:code', deleteOpts, async (request, reply) => {
     const { code } = request.params
     const token = bearerToken(request)
 

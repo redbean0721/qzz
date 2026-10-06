@@ -30,13 +30,13 @@ async function makeApp(opts: AppOptions) {
 }
 
 async function postLink(app: App, inject: { remoteAddress?: string; headers?: Record<string, string> } = {}) {
-  const res = await app.inject({ method: 'POST', url: '/api/links', payload: { url: 'https://example.com' }, ...inject })
+  const res = await app.inject({ method: 'POST', url: '/v1/links', payload: { url: 'https://example.com' }, ...inject })
   if (res.statusCode === 201) createdLinks.push(res.json<LinkResponse>().code)
   return res
 }
 
 async function postPaste(app: App, remoteAddress: string) {
-  const res = await app.inject({ method: 'POST', url: '/api/pastes', payload: { content: 'x' }, remoteAddress })
+  const res = await app.inject({ method: 'POST', url: '/v1/pastes', payload: { content: 'x' }, remoteAddress })
   if (res.statusCode === 201) createdPastes.push(res.json<PasteResponse>().code)
   return res
 }
@@ -61,7 +61,7 @@ test('delete endpoints are limited even when the token is wrong', async () => {
   const del = () =>
     app.inject({
       method: 'DELETE',
-      url: '/api/links/abcdefg',
+      url: '/v1/links/abcdefg',
       headers: { authorization: 'Bearer guess' },
       remoteAddress: '10.0.0.3',
     })
@@ -76,7 +76,7 @@ test('read endpoints are not rate limited', async () => {
   const { code } = (await postPaste(app, '10.0.0.4')).json<PasteResponse>()
 
   for (let i = 0; i < 20; i++) {
-    const res = await app.inject({ method: 'GET', url: `/api/pastes/${code}`, remoteAddress: '10.0.0.4' })
+    const res = await app.inject({ method: 'GET', url: `/v1/pastes/${code}`, remoteAddress: '10.0.0.4' })
     assert.equal(res.statusCode, 200)
   }
 })

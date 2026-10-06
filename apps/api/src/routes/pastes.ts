@@ -49,7 +49,7 @@ export const pasteRoutes: FastifyPluginAsync<RateLimitedRouteOptions> = async (a
   const createOpts = { bodyLimit: PASTE_BODY_LIMIT, config: perMinute(rateLimits.createPaste) }
   const deleteOpts = { config: perMinute(rateLimits.delete) }
 
-  app.post('/api/pastes', createOpts, async (request, reply) => {
+  app.post('/v1/pastes', createOpts, async (request, reply) => {
     const result = createPasteSchema.safeParse(request.body)
 
     if (!result.success) {
@@ -77,14 +77,14 @@ export const pasteRoutes: FastifyPluginAsync<RateLimitedRouteOptions> = async (a
     const body: PasteResponse = {
       code,
       url: `${PUBLIC_BASE_URL}/p/${code}`,
-      rawUrl: `${PUBLIC_BASE_URL}/api/pastes/${code}/raw`,
+      rawUrl: `${PUBLIC_BASE_URL}/v1/pastes/${code}/raw`,
       expiresAt: expiresAt?.toISOString() ?? null,
       deleteToken,
     }
     return reply.code(201).send(body)
   })
 
-  app.get<{ Params: CodeParams }>('/api/pastes/:code', async (request, reply) => {
+  app.get<{ Params: CodeParams }>('/v1/pastes/:code', async (request, reply) => {
     const paste = await findActivePaste(request.params.code)
 
     if (!paste) {
@@ -101,7 +101,7 @@ export const pasteRoutes: FastifyPluginAsync<RateLimitedRouteOptions> = async (a
     return reply.header('cache-control', 'no-store').send(body)
   })
 
-  app.get<{ Params: CodeParams }>('/api/pastes/:code/raw', async (request, reply) => {
+  app.get<{ Params: CodeParams }>('/v1/pastes/:code/raw', async (request, reply) => {
     const paste = await findActivePaste(request.params.code)
 
     if (!paste) {
@@ -117,7 +117,7 @@ export const pasteRoutes: FastifyPluginAsync<RateLimitedRouteOptions> = async (a
       .send(paste.content)
   })
 
-  app.delete<{ Params: CodeParams }>('/api/pastes/:code', deleteOpts, async (request, reply) => {
+  app.delete<{ Params: CodeParams }>('/v1/pastes/:code', deleteOpts, async (request, reply) => {
     const { code } = request.params
     const token = bearerToken(request)
 

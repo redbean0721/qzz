@@ -23,12 +23,12 @@ after(async () => {
 })
 
 async function createLink(payload: object) {
-  const res = await app.inject({ method: 'POST', url: '/api/links', payload })
+  const res = await app.inject({ method: 'POST', url: '/v1/links', payload })
   if (res.statusCode === 201) created.push(res.json<LinkResponse>().code)
   return res
 }
 
-test('POST /api/links creates a link and stores only the token hash', async () => {
+test('POST /v1/links creates a link and stores only the token hash', async () => {
   const res = await createLink({ url: 'https://example.com/a?b=c' })
   assert.equal(res.statusCode, 201)
 
@@ -44,7 +44,7 @@ test('POST /api/links creates a link and stores only the token hash', async () =
   assert.notEqual(row.deleteTokenHash, body.deleteToken)
 })
 
-test('POST /api/links sets expiresAt from expiresIn', async () => {
+test('POST /v1/links sets expiresAt from expiresIn', async () => {
   const before = Date.now()
   const res = await createLink({ url: 'https://example.com', expiresIn: '1h' })
   assert.equal(res.statusCode, 201)
@@ -53,7 +53,7 @@ test('POST /api/links sets expiresAt from expiresIn', async () => {
   assert.ok(expiresAt >= before + 3600_000 && expiresAt <= Date.now() + 3600_000)
 })
 
-test('POST /api/links rejects non-http(s) urls and control characters', async () => {
+test('POST /v1/links rejects non-http(s) urls and control characters', async () => {
   for (const url of [
     'javascript:alert(1)',
     'ftp://example.com',
@@ -66,22 +66,22 @@ test('POST /api/links rejects non-http(s) urls and control characters', async ()
   }
 })
 
-test('POST /api/links strips CR/LF and tabs like browsers do', async () => {
+test('POST /v1/links strips CR/LF and tabs like browsers do', async () => {
   const res = await createLink({ url: 'https://example.com/a\r\nSet-Cookie: x=1' })
   assert.equal(res.statusCode, 201)
   assert.equal(res.json<LinkResponse>().url, 'https://example.com/aSet-Cookie: x=1')
 })
 
-test('GET /:code redirects with 302', async () => {
+test('GET /v1/links/:code redirects with 302', async () => {
   const { code } = (await createLink({ url: 'https://example.com/target' })).json<LinkResponse>()
 
-  const res = await app.inject({ method: 'GET', url: `/${code}` })
+  const res = await app.inject({ method: 'GET', url: `/v1/links/${code}` })
   assert.equal(res.statusCode, 302)
   assert.equal(res.headers.location, 'https://example.com/target')
   assert.equal(res.headers['cache-control'], 'no-store')
 })
 
-test('GET /:code returns 404 for unknown, expired and disabled links', async () => {
+test('GET /v1/links/:code returns 404 for unknown, expired and disabled links', async () => {
   const expired = generateCode()
   const disabled = generateCode()
   created.push(expired, disabled)
@@ -91,25 +91,25 @@ test('GET /:code returns 404 for unknown, expired and disabled links', async () 
   ])
 
   for (const code of [generateCode(), expired, disabled, 'bad-code!']) {
-    const res = await app.inject({ method: 'GET', url: `/${code}` })
+    const res = await app.inject({ method: 'GET', url: `/v1/links/${code}` })
     assert.equal(res.statusCode, 404, code)
   }
 })
 
-test('DELETE /api/links/:code requires the right token', async () => {
+test('DELETE /v1/links/:code requires the right token', async () => {
   const { code, deleteToken } = (await createLink({ url: 'https://example.com' })).json<LinkResponse>()
   const del = (authorization?: string) =>
     app.inject({
       method: 'DELETE',
-      url: `/api/links/${code}`,
+      url: `/v1/links/${code}`,
       headers: authorization ? { authorization } : {},
     })
 
   assert.equal((await del()).statusCode, 401)
   assert.equal((await del('Bearer wrong-token')).statusCode, 404)
-  assert.equal((await app.inject({ method: 'GET', url: `/${code}` })).statusCode, 302)
+  assert.equal((await app.inject({ method: 'GET', url: `/v1/links/${code}` })).statusCode, 302)
 
   assert.equal((await del(`Bearer ${deleteToken}`)).statusCode, 204)
-  assert.equal((await app.inject({ method: 'GET', url: `/${code}` })).statusCode, 404)
+  assert.equal((await app.inject({ method: 'GET', url: `/v1/links/${code}` })).statusCode, 404)
   assert.equal((await del(`Bearer ${deleteToken}`)).statusCode, 404)
 })
