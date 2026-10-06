@@ -1,0 +1,14 @@
+{
+  "name": "qzz",
+  "private": true,
+  "packageManager": "yarn@4.18.1",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "yarn workspace @qzz/web dev",
+    "dev:api": "yarn workspace @qzz/api dev",
+    "dev:ext": "yarn workspace @qzz/extension dev"
+  }
+}
