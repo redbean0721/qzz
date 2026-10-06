@@ -13,6 +13,20 @@ const app = await buildApp({
 const port = Number(process.env.PORT ?? 3001)
 const host = process.env.HOST ?? '0.0.0.0'
 
+// k8s 滾動更新會送 SIGTERM：停止接新連線、等進行中的請求和清除排程結束，再關 DB / Valkey
+for (const signal of ['SIGTERM', 'SIGINT'] as const) {
+  process.once(signal, async () => {
+    app.log.info({ signal }, 'shutting down')
+    try {
+      await app.close()
+      process.exit(0)
+    } catch (err) {
+      app.log.error(err)
+      process.exit(1)
+    }
+  })
+}
+
 try {
   await app.listen({ port, host })
 } catch (err) {

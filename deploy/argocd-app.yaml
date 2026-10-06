@@ -1,0 +1,20 @@
+# 手動 apply 一次：kubectl apply -f deploy/argocd-app.yaml
+# 放在 deploy/k8s 外面，ArgoCD 才不會連這個 Application 本身一起同步
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: qzz
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/redbean0721/qzz.git
+    targetRevision: main
+    path: deploy/k8s
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: qzz
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

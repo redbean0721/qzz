@@ -1,0 +1,109 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qzz-api
+  namespace: qzz
+  labels:
+    app.kubernetes.io/name: qzz-api
+    app.kubernetes.io/part-of: qzz
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: qzz-api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: qzz-api
+        app.kubernetes.io/part-of: qzz
+    spec:
+      # GHCR package 是私有的才需要（見 deploy/README.md）
+      # imagePullSecrets:
+      #   - name: ghcr-pull
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+
+      initContainers:
+        # 套用 DB migration；多個 Pod 同時啟動時由 advisory lock 排隊
+        - name: migrate
+          # image tag 由 GitHub workflow 改寫，兩處要一致
+          image: ghcr.io/redbean0721/qzz-api:main
+          command: ["node", "dist/migrate.js"]
+          envFrom:
+            - secretRef:
+                name: qzz-api
+          resources:
+            requests:
+              cpu: 20m
+              memory: 64Mi
+            limits:
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+
+      containers:
+        - name: api
+          image: ghcr.io/redbean0721/qzz-api:main
+          ports:
+            - name: http
+              containerPort: 3001
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: HOST
+              value: 0.0.0.0
+            - name: PORT
+              value: "3001"
+            - name: PUBLIC_BASE_URL
+              value: https://qzz.tw
+            # 請求經 cloudflared Pod 進來；信任 Pod 網段才會從 X-Forwarded-For 取得真實 IP。
+            # 10.42.0.0/16 是 k3s 預設的 cluster-cidr，有改過的話要跟著改
+            - name: TRUST_PROXY
+              value: 10.42.0.0/16
+          # DATABASE_URL、REDIS_URL（見 deploy/README.md）
+          envFrom:
+            - secretRef:
+                name: qzz-api
+          # /health 會檢查 DB；DB 掛掉時只把 Pod 移出流量，不重啟
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          lifecycle:
+            # 先等 Service 把這個 Pod 移出 endpoints，再送 SIGTERM 讓 API 優雅關閉
+            preStop:
+              sleep:
+                seconds: 5
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]

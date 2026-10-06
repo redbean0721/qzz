@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: qzz
+  labels:
+    app.kubernetes.io/part-of: qzz
+  annotations:
+    # 裡面有手動建立的 Secret（不在 git 裡），不讓 ArgoCD prune 掉整個 namespace
+    argocd.argoproj.io/sync-options: Prune=false
