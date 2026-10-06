@@ -2,9 +2,16 @@ import Fastify, { type FastifyServerOptions } from 'fastify'
 import rateLimit from '@fastify/rate-limit'
 import { sql } from 'drizzle-orm'
 import { Redis } from 'ioredis'
-import { CLEANUP_INTERVAL_MS, RATE_LIMITS, REDIS_URL, type RateLimits } from './config.js'
+import {
+  CLEANUP_INTERVAL_MS,
+  RATE_LIMITS,
+  REDIS_URL,
+  SAFE_BROWSING_API_KEY,
+  type RateLimits,
+} from './config.js'
 import { db, pool } from './db/index.js'
 import { startCleanupScheduler } from './jobs/cleanup.js'
+import { createSafeBrowsingChecker, type UrlChecker } from './lib/safe-browsing.js'
 import { linkRoutes } from './routes/links.js'
 import { pasteRoutes } from './routes/pastes.js'
 
@@ -17,6 +24,8 @@ export type AppOptions = {
   }
   // false = 不跑定期清除（測試用）
   cleanup?: false | { intervalMs?: number; lockKey?: string }
+  // 檢查短網址目標的函式；預設用 SAFE_BROWSING_API_KEY，false = 不檢查（測試用）
+  urlChecker?: UrlChecker | false
 }
 
 export async function buildApp(opts: AppOptions = {}) {
@@ -69,7 +78,15 @@ export async function buildApp(opts: AppOptions = {}) {
   })
 
   const rateLimits = { ...RATE_LIMITS, ...opts.rateLimit?.limits }
-  await app.register(linkRoutes, { rateLimits })
+  const urlChecker =
+    opts.urlChecker === false
+      ? undefined
+      : (opts.urlChecker ?? (SAFE_BROWSING_API_KEY ? createSafeBrowsingChecker(SAFE_BROWSING_API_KEY) : undefined))
+  if (opts.urlChecker === undefined && !SAFE_BROWSING_API_KEY) {
+    app.log.warn('SAFE_BROWSING_API_KEY is not set: short link targets are not checked')
+  }
+
+  await app.register(linkRoutes, { rateLimits, urlChecker })
   await app.register(pasteRoutes, { rateLimits })
 
   return app

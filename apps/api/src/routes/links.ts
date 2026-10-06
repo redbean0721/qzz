@@ -7,13 +7,16 @@ import { bearerToken } from '../lib/auth.js'
 import { CODE_PATTERN, insertWithUniqueCode } from '../lib/code.js'
 import { expiresAtFrom } from '../lib/expires.js'
 import { perMinute, type RateLimitedRouteOptions } from '../lib/rate-limit.js'
+import type { UrlChecker } from '../lib/safe-browsing.js'
 import { generateDeleteToken, hashDeleteToken, verifyDeleteToken } from '../lib/token.js'
 
 const { links } = schema
 
 type CodeParams = { code: string }
 
-export const linkRoutes: FastifyPluginAsync<RateLimitedRouteOptions> = async (app, { rateLimits }) => {
+type LinkRouteOptions = RateLimitedRouteOptions & { urlChecker?: UrlChecker }
+
+export const linkRoutes: FastifyPluginAsync<LinkRouteOptions> = async (app, { rateLimits, urlChecker }) => {
   const createOpts = { config: perMinute(rateLimits.createLink) }
   const deleteOpts = { config: perMinute(rateLimits.delete) }
 
@@ -25,6 +28,22 @@ export const linkRoutes: FastifyPluginAsync<RateLimitedRouteOptions> = async (ap
     }
 
     const { url, expiresIn } = result.data
+
+    if (urlChecker) {
+      const verdict = await urlChecker(url)
+      if (verdict.status === 'unsafe') {
+        request.log.warn({ url, threats: verdict.threats }, 'rejected unsafe link target')
+        // 跟 zod 的錯誤格式一樣，前端直接顯示 message
+        return reply.code(400).send({
+          error: [{ code: 'unsafe_url', path: ['url'], message: '這個網址被 Google 標記為危險網站，無法縮短' }],
+        })
+      }
+      if (verdict.status === 'error') {
+        // Google 的服務有問題時放行，不影響正常使用
+        request.log.warn({ url, err: verdict.error }, 'safe browsing check failed, allowing link')
+      }
+    }
+
     const deleteToken = generateDeleteToken()
     const expiresAt = expiresAtFrom(expiresIn)
 

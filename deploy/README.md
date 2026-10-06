@@ -20,7 +20,8 @@ kubectl apply -f deploy/k8s/namespace.yaml
 # API: connection strings for the existing Postgres / Valkey
 kubectl -n qzz create secret generic qzz-api \
   --from-literal=DATABASE_URL='postgres://USER:PASSWORD@HOST:5432/qzz' \
-  --from-literal=REDIS_URL='redis://HOST:6379'
+  --from-literal=REDIS_URL='redis://HOST:6379' \
+  --from-literal=SAFE_BROWSING_API_KEY='<Google API key restricted to the Safe Browsing API>'
 
 # Cloudflare Tunnel token (step 2)
 kubectl -n qzz create secret generic cloudflared \
@@ -96,6 +97,19 @@ The `qzz` Namespace has `Prune=false` so the hand-made secrets are never deleted
    Rolling update keeps the old Pods serving (`maxUnavailable: 0`); on shutdown the API drains on SIGTERM.
 
 Rollback: revert the `deploy:` commit (or edit the tag back) and push; ArgoCD syncs the older image.
+
+## Takedown
+
+Disabled links / pastes return 404 everywhere immediately (the row is kept for the record):
+
+```sh
+kubectl -n qzz exec deploy/qzz-api -- node dist/admin.js show    https://qzz.tw/abc1234
+kubectl -n qzz exec deploy/qzz-api -- node dist/admin.js disable https://qzz.tw/abc1234
+kubectl -n qzz exec deploy/qzz-api -- node dist/admin.js disable https://qzz.tw/p/abc1234
+kubectl -n qzz exec deploy/qzz-api -- node dist/admin.js enable  link abc1234
+```
+
+`show` prints the target URL (or a paste preview), creator IP and timestamps.
 
 ## Checks
 

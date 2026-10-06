@@ -8,6 +8,7 @@
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
     "migrate": "tsx --env-file-if-exists=.env src/migrate.ts",
+    "admin": "tsx --env-file-if-exists=.env src/admin.ts",
     "cleanup": "tsx --env-file-if-exists=.env src/cleanup.ts",
     "test": "tsx --env-file-if-exists=.env --test 'src/**/*.test.ts'",
     "db:generate": "drizzle-kit generate",

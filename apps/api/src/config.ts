@@ -32,6 +32,8 @@ export const PUBLIC_BASE_URL = requireEnv('PUBLIC_BASE_URL').replace(/\/+$/, '')
 export const REDIS_URL = requireEnv('REDIS_URL')
 export const TRUST_PROXY = trustProxyEnv()
 export const CLEANUP_INTERVAL_MS = intEnv('CLEANUP_INTERVAL_MINUTES', 60) * 60 * 1000
+// 選填：沒設定就不檢查短網址的目標（本機開發、測試）
+export const SAFE_BROWSING_API_KEY = process.env.SAFE_BROWSING_API_KEY || undefined
 
 // 每個 IP 每分鐘的上限
 export type RateLimits = {
