@@ -10,7 +10,9 @@ export const createPasteSchema = z.object({
     .refine(
       (s) => new TextEncoder().encode(s).length <= MAX_PASTE_BYTES,
       `內容不可超過 ${MAX_PASTE_BYTES / 1024} KB`,
-    ),
+    )
+    // Postgres TEXT 不能存 NUL
+    .refine((s) => !s.includes('\0'), '內容不可包含 NUL 字元'),
   language: z.string().max(32).optional(),
   expiresIn: expiresInSchema.default('30d'),
 })
@@ -26,3 +28,13 @@ export const pasteResponseSchema = z.object({
 })
 
 export type PasteResponse = z.infer<typeof pasteResponseSchema>
+
+export const pasteViewSchema = z.object({
+  code: z.string(),
+  content: z.string(),
+  language: z.string().nullable(),
+  createdAt: z.string(),
+  expiresAt: z.string().nullable(),
+})
+
+export type PasteView = z.infer<typeof pasteViewSchema>

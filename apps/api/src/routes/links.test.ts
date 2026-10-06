@@ -53,11 +53,23 @@ test('POST /api/links sets expiresAt from expiresIn', async () => {
   assert.ok(expiresAt >= before + 3600_000 && expiresAt <= Date.now() + 3600_000)
 })
 
-test('POST /api/links rejects non-http(s) urls', async () => {
-  for (const url of ['javascript:alert(1)', 'ftp://example.com', 'not a url']) {
+test('POST /api/links rejects non-http(s) urls and control characters', async () => {
+  for (const url of [
+    'javascript:alert(1)',
+    'ftp://example.com',
+    'not a url',
+    'https://example.com/a\u0000b',
+    'https://example.com/a\u0001b',
+  ]) {
     const res = await createLink({ url })
     assert.equal(res.statusCode, 400, url)
   }
+})
+
+test('POST /api/links strips CR/LF and tabs like browsers do', async () => {
+  const res = await createLink({ url: 'https://example.com/a\r\nSet-Cookie: x=1' })
+  assert.equal(res.statusCode, 201)
+  assert.equal(res.json<LinkResponse>().url, 'https://example.com/aSet-Cookie: x=1')
 })
 
 test('GET /:code redirects with 302', async () => {

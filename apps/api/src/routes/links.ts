@@ -1,21 +1,14 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { createLinkSchema, type LinkResponse } from '@qzz/shared'
 import { and, eq, gt, isNull, or, sql } from 'drizzle-orm'
+import { PUBLIC_BASE_URL } from '../config.js'
 import { db, schema } from '../db/index.js'
-import { generateCode } from '../lib/code.js'
-import { isUniqueViolation } from '../lib/db-errors.js'
+import { bearerToken } from '../lib/auth.js'
+import { CODE_PATTERN, insertWithUniqueCode } from '../lib/code.js'
 import { expiresAtFrom } from '../lib/expires.js'
 import { generateDeleteToken, hashDeleteToken, verifyDeleteToken } from '../lib/token.js'
 
 const { links } = schema
-
-if (!process.env.PUBLIC_BASE_URL) {
-  throw new Error('PUBLIC_BASE_URL is not set')
-}
-
-const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL.replace(/\/+$/, '')
-const MAX_CODE_ATTEMPTS = 5
-const CODE_PATTERN = /^[0-9A-Za-z]{1,16}$/
 
 type CodeParams = { code: string }
 
@@ -31,35 +24,27 @@ export const linkRoutes: FastifyPluginAsync = async (app) => {
     const deleteToken = generateDeleteToken()
     const expiresAt = expiresAtFrom(expiresIn)
 
-    for (let attempt = 1; attempt <= MAX_CODE_ATTEMPTS; attempt++) {
-      const code = generateCode()
-      try {
-        await db.insert(links).values({
+    const code = await insertWithUniqueCode(
+      'links_code_unique',
+      (code) =>
+        db.insert(links).values({
           code,
           url,
           deleteTokenHash: hashDeleteToken(deleteToken),
           creatorIp: request.ip,
           expiresAt,
-        })
-      } catch (err) {
-        if (isUniqueViolation(err, 'links_code_unique')) {
-          request.log.warn({ code, attempt }, 'short code collision, retrying')
-          continue
-        }
-        throw err
-      }
+        }),
+      (code, attempt) => request.log.warn({ code, attempt }, 'short code collision, retrying'),
+    )
 
-      const body: LinkResponse = {
-        code,
-        shortUrl: `${PUBLIC_BASE_URL}/${code}`,
-        url,
-        expiresAt: expiresAt?.toISOString() ?? null,
-        deleteToken,
-      }
-      return reply.code(201).send(body)
+    const body: LinkResponse = {
+      code,
+      shortUrl: `${PUBLIC_BASE_URL}/${code}`,
+      url,
+      expiresAt: expiresAt?.toISOString() ?? null,
+      deleteToken,
     }
-
-    throw new Error(`failed to allocate a unique short code after ${MAX_CODE_ATTEMPTS} attempts`)
+    return reply.code(201).send(body)
   })
 
   app.get<{ Params: CodeParams }>('/:code', async (request, reply) => {
@@ -90,7 +75,7 @@ export const linkRoutes: FastifyPluginAsync = async (app) => {
 
   app.delete<{ Params: CodeParams }>('/api/links/:code', async (request, reply) => {
     const { code } = request.params
-    const token = /^Bearer (.+)$/.exec(request.headers.authorization ?? '')?.[1]
+    const token = bearerToken(request)
 
     if (!token) {
       return reply.code(401).send({ error: 'missing delete token' })
