@@ -12,6 +12,7 @@ export type HistoryItem = {
 
 const STORAGE_KEY = 'qzz:history:v1'
 const MAX_ITEMS = 100
+const PRUNE_INTERVAL_MS = 60 * 1000
 
 function read(): HistoryItem[] {
   try {
@@ -36,8 +37,24 @@ export function useHistory() {
   const loaded = useState('history-loaded', () => false)
 
   if (import.meta.client && !loaded.value) {
-    items.value = read()
     loaded.value = true
+    items.value = read()
+    prune()
+    // 頁面開著時，到期的項目也會自動消失
+    setInterval(prune, PRUNE_INTERVAL_MS)
+    // 其他分頁改了紀錄就重新讀取，避免這邊用舊資料寫回去蓋掉
+    window.addEventListener('storage', (event) => {
+      if (event.key === STORAGE_KEY) items.value = read()
+    })
+  }
+
+  // 過期的連結和貼文已經打不開，刪除碼也用不到了：直接從紀錄移除
+  function prune() {
+    const active = items.value.filter((i) => !isExpired(i.expiresAt))
+    if (active.length !== items.value.length) {
+      items.value = active
+      write(active)
+    }
   }
 
   function add(item: Omit<HistoryItem, 'createdAt'>) {

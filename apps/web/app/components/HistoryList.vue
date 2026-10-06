@@ -56,8 +56,7 @@ async function onDelete(item: HistoryItem) {
             :href="item.url"
             target="_blank"
             rel="noopener"
-            class="block truncate font-mono text-sm"
-            :class="isExpired(item.expiresAt) ? 'text-dimmed line-through' : 'text-primary'"
+            class="block truncate font-mono text-sm text-primary"
           >
             {{ item.url }}
           </a>
@@ -67,30 +66,25 @@ async function onDelete(item: HistoryItem) {
           </p>
         </div>
 
-        <template v-if="isExpired(item.expiresAt)">
-          <UButton size="xs" color="neutral" variant="ghost" label="移除" @click="remove(item)" />
-        </template>
-        <template v-else>
-          <UButton
-            size="xs"
-            color="neutral"
-            variant="ghost"
-            icon="i-lucide-copy"
-            aria-label="複製"
-            @click="copy(item.url)"
-          />
-          <UButton
-            size="xs"
-            color="error"
-            :variant="confirming === keyOf(item) ? 'solid' : 'ghost'"
-            :icon="confirming === keyOf(item) ? undefined : 'i-lucide-trash-2'"
-            :label="confirming === keyOf(item) ? '確定刪除？' : undefined"
-            :aria-label="confirming === keyOf(item) ? undefined : '刪除'"
-            :loading="deleting === keyOf(item)"
-            @click="onDelete(item)"
-            @blur="confirming === keyOf(item) && (confirming = null)"
-          />
-        </template>
+        <UButton
+          size="xs"
+          color="neutral"
+          variant="ghost"
+          icon="i-lucide-copy"
+          aria-label="複製"
+          @click="copy(item.url)"
+        />
+        <UButton
+          size="xs"
+          color="error"
+          :variant="confirming === keyOf(item) ? 'solid' : 'ghost'"
+          :icon="confirming === keyOf(item) ? undefined : 'i-lucide-trash-2'"
+          :label="confirming === keyOf(item) ? '確定刪除？' : undefined"
+          :aria-label="confirming === keyOf(item) ? undefined : '刪除'"
+          :loading="deleting === keyOf(item)"
+          @click="onDelete(item)"
+          @blur="confirming === keyOf(item) && (confirming = null)"
+        />
       </li>
     </ul>
   </section>
