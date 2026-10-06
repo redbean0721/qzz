@@ -1537,6 +1537,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@qzz/api@workspace:apps/api"
   dependencies:
+    "@qzz/shared": "workspace:*"
     "@types/node": "npm:^26.6.4"
     fastify: "npm:^5.12.5"
     pino-pretty: "npm:^13.2.0"
@@ -1545,11 +1546,21 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@qzz/shared@workspace:*, @qzz/shared@workspace:packages/shared":
+  version: 0.0.0-use.local
+  resolution: "@qzz/shared@workspace:packages/shared"
+  dependencies:
+    typescript: "npm:^7.0.2"
+    zod: "npm:^4.6.5"
+  languageName: unknown
+  linkType: soft
+
 "@qzz/web@workspace:apps/web":
   version: 0.0.0-use.local
   resolution: "@qzz/web@workspace:apps/web"
   dependencies:
     "@nuxt/eslint": "npm:1.17.0"
+    "@qzz/shared": "workspace:*"
     eslint: "npm:^9.0.0 || ^10.0.0"
     nuxt: "npm:^4.5.2"
     vue: "npm:^3.5.43"
@@ -9702,7 +9713,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"zod@npm:^4.2.0":
+"zod@npm:^4.2.0, zod@npm:^4.6.5":
   version: 4.6.5
   resolution: "zod@npm:4.6.5"
   checksum: 10c0/32eb6c5e98becbe045675b2141c3611451c16ba567f9779231d79af41c4d651ca1c22f154aef7e6c6e77b929f23e43f1154ca05b82e119e922353725d6776af5
