@@ -1,0 +1,14 @@
+# build context 是 repo 根目錄（apps/api/Dockerfile 需要 workspace 和 packages/shared）
+.git
+.github
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+.yarn/install-state.gz
+deploy
+CLAUDE.md
+
+# web 只需要 package.json：yarn 要靠所有 workspace 的 manifest 對齊 lockfile
+apps/web/*
+!apps/web/package.json

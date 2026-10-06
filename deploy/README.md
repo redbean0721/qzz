@@ -60,12 +60,29 @@ kubectl apply -f deploy/argocd-app.yaml
 ArgoCD then syncs `deploy/k8s` from `main` (auto-sync, prune, self-heal).
 The `qzz` Namespace has `Prune=false` so the hand-made secrets are never deleted with it.
 
+### 4. GitHub
+
+- Repository secret `GPG_PRIVATE_KEY`: the deploy bot's armored private key (no passphrase; if it has one, also add
+  `GPG_PASSPHRASE` and uncomment it in the workflow). Add the public key to the GitHub account that owns
+  `deploy@redbean0721.com` so the bot's commits show as Verified.
+- After the first workflow run creates the `qzz-api` package: GitHub → Packages → qzz-api → Package settings →
+  change visibility to **Public** (or keep it private and use the `ghcr-pull` secret from step 1).
+
 ## How a release rolls out
 
-1. A push to `main` touching the API builds `ghcr.io/redbean0721/qzz-api:sha-<commit>` (GitHub workflow).
-2. The workflow commits the new tag into `k8s/deployment.yaml` (both the `migrate` init container and `api`).
-3. ArgoCD syncs; each new Pod runs `node dist/migrate.js` (serialized with a Postgres advisory lock), then starts.
+`.github/workflows/api.yml`, on a push to `main` that touches the API, shared code, lockfile or the workflow:
+
+1. **test** — typecheck, migrate and the API test suite against Postgres 18 + Valkey 8 service containers.
+2. **build** — `apps/api/Dockerfile` for `linux/amd64` and `linux/arm64`, pushed as
+   `ghcr.io/redbean0721/qzz-api:sha-<7 chars>` and `:main`. The build stage runs on the runner's platform and the
+   final stage only copies files, so arm64 needs no QEMU (the build fails if a native `.node` module ever appears).
+3. **deploy** — rewrites both image fields in `k8s/deployment.yaml` to the new sha tag and pushes a GPG-signed
+   commit `deploy: <original subject>` as "Redbean0721 Deploy Bot". `deploy/` isn't in the workflow's path
+   filter, so this commit doesn't trigger another run.
+4. ArgoCD syncs; each new Pod runs `node dist/migrate.js` (serialized with a Postgres advisory lock), then starts.
    Rolling update keeps the old Pods serving (`maxUnavailable: 0`); on shutdown the API drains on SIGTERM.
+
+Rollback: revert the `deploy:` commit (or edit the tag back) and push; ArgoCD syncs the older image.
 
 ## Checks
 
