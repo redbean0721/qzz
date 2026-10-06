@@ -3,7 +3,7 @@ import { expiresInSchema } from './common.js'
 
 export const createLinkSchema = z.object({
   url: z
-    .url({ protocol: /^https?$/ })
+    .url({ protocol: /^https?$/, error: '請輸入有效的 http 或 https 網址' })
     // z.url() 會像瀏覽器一樣去掉 tab/CR/LF，但 NUL 等其他控制字元會留著：
     // NUL 存不進 Postgres，其餘的也不該出現在 Location header
     .refine((s) => !/[\u0000-\u001f\u007f]/.test(s), '網址不可包含控制字元'),

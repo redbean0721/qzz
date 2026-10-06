@@ -97,6 +97,7 @@ test('GET /v1/pastes/:code/raw serves untrusted content as plain text', async ()
   assert.equal(res.headers['content-type'], 'text/plain; charset=utf-8')
   assert.equal(res.headers['x-content-type-options'], 'nosniff')
   assert.equal(res.headers['content-security-policy'], "default-src 'none'; sandbox")
+  assert.equal(res.headers['x-robots-tag'], 'noindex, nofollow')
 })
 
 test('GET returns 404 for unknown, expired and disabled pastes', async () => {

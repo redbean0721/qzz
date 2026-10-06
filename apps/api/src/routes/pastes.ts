@@ -114,6 +114,7 @@ export const pasteRoutes: FastifyPluginAsync<RateLimitedRouteOptions> = async (a
       .header('x-content-type-options', 'nosniff')
       .header('content-security-policy', "default-src 'none'; sandbox")
       .header('cache-control', 'no-store')
+      .header('x-robots-tag', 'noindex, nofollow')
       .send(paste.content)
   })
 
