@@ -2,8 +2,9 @@ import Fastify, { type FastifyServerOptions } from 'fastify'
 import rateLimit from '@fastify/rate-limit'
 import { sql } from 'drizzle-orm'
 import { Redis } from 'ioredis'
-import { RATE_LIMITS, REDIS_URL, type RateLimits } from './config.js'
+import { CLEANUP_INTERVAL_MS, RATE_LIMITS, REDIS_URL, type RateLimits } from './config.js'
 import { db, pool } from './db/index.js'
+import { startCleanupScheduler } from './jobs/cleanup.js'
 import { linkRoutes } from './routes/links.js'
 import { pasteRoutes } from './routes/pastes.js'
 
@@ -14,6 +15,8 @@ export type AppOptions = {
     nameSpace?: string
     limits?: Partial<RateLimits>
   }
+  // false = 不跑定期清除（測試用）
+  cleanup?: false | { intervalMs?: number; lockKey?: string }
 }
 
 export async function buildApp(opts: AppOptions = {}) {
@@ -26,8 +29,17 @@ export async function buildApp(opts: AppOptions = {}) {
   })
   redis.on('error', (err) => app.log.warn({ err }, 'valkey connection error'))
 
+  let stopCleanup: (() => Promise<void>) | undefined
+  if (opts.cleanup !== false) {
+    const { intervalMs = CLEANUP_INTERVAL_MS, lockKey = 'qzz:lock:cleanup' } = opts.cleanup ?? {}
+    app.addHook('onReady', async () => {
+      stopCleanup = startCleanupScheduler({ redis, log: app.log, intervalMs, lockKey })
+    })
+  }
+
   // pool 是 module 層級共用的；同一個 process 建多個 app（測試）時只關一次
   app.addHook('onClose', async () => {
+    await stopCleanup?.()
     redis.disconnect()
     if (!pool.ending) await pool.end()
   })

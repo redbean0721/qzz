@@ -31,6 +31,7 @@ function trustProxyEnv(): false | string {
 export const PUBLIC_BASE_URL = requireEnv('PUBLIC_BASE_URL').replace(/\/+$/, '')
 export const REDIS_URL = requireEnv('REDIS_URL')
 export const TRUST_PROXY = trustProxyEnv()
+export const CLEANUP_INTERVAL_MS = intEnv('CLEANUP_INTERVAL_MINUTES', 60) * 60 * 1000
 
 // 每個 IP 每分鐘的上限
 export type RateLimits = {
