@@ -2,17 +2,17 @@ import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
 import { eq, inArray } from 'drizzle-orm'
 import { MAX_PASTE_BYTES, type PasteResponse, type PasteView } from '@qzz/shared'
-import { buildApp } from '../app.js'
+import { buildTestApp } from '../testing.js'
 import { db, schema } from '../db/index.js'
 import { generateCode } from '../lib/code.js'
 import { hashDeleteToken } from '../lib/token.js'
 
 const { pastes } = schema
 const created: string[] = []
-let app: Awaited<ReturnType<typeof buildApp>>
+let app: Awaited<ReturnType<typeof buildTestApp>>
 
 before(async () => {
-  app = await buildApp()
+  app = await buildTestApp()
 })
 
 after(async () => {

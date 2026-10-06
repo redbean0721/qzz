@@ -1204,6 +1204,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@fastify/rate-limit@npm:^11.2.0":
+  version: 11.2.0
+  resolution: "@fastify/rate-limit@npm:11.2.0"
+  dependencies:
+    "@lukeed/ms": "npm:^2.0.2"
+    fastify-plugin: "npm:^6.0.0"
+    ip-address: "npm:^10.2.0"
+    toad-cache: "npm:^3.7.0"
+  checksum: 10c0/f782431e2b3a1374cfb042e978789b0f2b1409c058d8ade40c8968c2728b8bcc185a808a2dad011ed9b1e746a9f9f810fa68fc01affb46cfbfc714a55c7b7f05
+  languageName: node
+  linkType: hard
+
 "@humanfs/core@npm:^0.19.2":
   version: 0.19.2
   resolution: "@humanfs/core@npm:0.19.2"
@@ -1361,6 +1373,13 @@ __metadata:
   version: 1.1.1
   resolution: "@kwsites/promise-deferred@npm:1.1.1"
   checksum: 10c0/ef1ad3f1f50991e3bed352b175986d8b4bc684521698514a2ed63c1d1fc9848843da4f2bc2df961c9b148c94e1c34bf33f0da8a90ba2234e452481f2cc9937b1
+  languageName: node
+  linkType: hard
+
+"@lukeed/ms@npm:^2.0.2":
+  version: 2.0.2
+  resolution: "@lukeed/ms@npm:2.0.2"
+  checksum: 10c0/843b922717313bcde4943f478145d8bc13115b9b91d83bbaed53739b5644122984412310aed574792f4e6b492f2cbda178175f601856d310f67e14834c3f17a0
   languageName: node
   linkType: hard
 
@@ -1900,12 +1919,14 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@qzz/api@workspace:apps/api"
   dependencies:
+    "@fastify/rate-limit": "npm:^11.2.0"
     "@qzz/shared": "workspace:*"
     "@types/node": "npm:^26.6.4"
     "@types/pg": "npm:^8.23.1"
     drizzle-kit: "npm:^0.31.11"
     drizzle-orm: "npm:^0.45.3"
     fastify: "npm:^5.12.5"
+    ioredis: "npm:^5.11.1"
     pg: "npm:^8.23.1"
     pino-pretty: "npm:^13.2.0"
     tsx: "npm:^4.23.15"
@@ -5462,6 +5483,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"fastify-plugin@npm:^6.0.0":
+  version: 6.0.0
+  resolution: "fastify-plugin@npm:6.0.0"
+  checksum: 10c0/4d9207efcbb0e6e8bd849eb8e00b097ae2d73590b1499f51d0bed135d08664e19d9428f2e8fc1a126b55ec4d2ac011dbcc72e753c255c46a751d6d34b57e5d4f
+  languageName: node
+  linkType: hard
+
 "fastify@npm:^5.12.5":
   version: 5.12.5
   resolution: "fastify@npm:5.12.5"
@@ -6038,7 +6066,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ioredis@npm:^5.10.1":
+"ioredis@npm:^5.10.1, ioredis@npm:^5.11.1":
   version: 5.11.1
   resolution: "ioredis@npm:5.11.1"
   dependencies:
@@ -6050,6 +6078,13 @@ __metadata:
     redis-parser: "npm:3.0.0"
     standard-as-callback: "npm:2.1.0"
   checksum: 10c0/a8b27043cf2c045dfc93f40a32ce24cf9f8b57799a37f4234c4b925c365ccf131629590f94a512f546fda2ba8ed034009c94c4933ecd44c50bc166636d929fd6
+  languageName: node
+  linkType: hard
+
+"ip-address@npm:^10.2.0":
+  version: 10.7.3
+  resolution: "ip-address@npm:10.7.3"
+  checksum: 10c0/145d9848f315a0375437d206dee763e2dd654063e8c5d6270a329e249cfad30b4ae760b237bb1991abfe67276f542310a89fca891ddf76f934e397e0dda1bf3b
   languageName: node
   linkType: hard
 

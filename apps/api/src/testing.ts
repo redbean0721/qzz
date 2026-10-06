@@ -1,0 +1,22 @@
+import { randomUUID } from 'node:crypto'
+import { buildApp, type AppOptions } from './app.js'
+
+const HIGH_LIMIT = 10_000
+
+// 每個 app 用獨立的 rate limit 前綴，避免測試之間（或和 dev server）互相吃額度；
+// 預設上限設很高，只有專測 rate limit 的測試才傳低上限
+export function buildTestApp(opts: AppOptions = {}) {
+  return buildApp({
+    ...opts,
+    rateLimit: {
+      nameSpace: `qzz:test:${randomUUID()}:`,
+      ...opts.rateLimit,
+      limits: {
+        createLink: HIGH_LIMIT,
+        createPaste: HIGH_LIMIT,
+        delete: HIGH_LIMIT,
+        ...opts.rateLimit?.limits,
+      },
+    },
+  })
+}

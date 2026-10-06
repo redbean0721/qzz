@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
-import { buildApp } from './app.js'
+import { buildTestApp } from './testing.js'
 
-let app: Awaited<ReturnType<typeof buildApp>>
+let app: Awaited<ReturnType<typeof buildTestApp>>
 
 before(async () => {
-  app = await buildApp()
+  app = await buildTestApp()
   app.get('/__boom', async () => {
     throw new Error('Failed query: select secret from users')
   })

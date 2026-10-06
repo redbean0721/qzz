@@ -11,6 +11,7 @@ import { db, schema } from '../db/index.js'
 import { bearerToken } from '../lib/auth.js'
 import { CODE_PATTERN, insertWithUniqueCode } from '../lib/code.js'
 import { expiresAtFrom } from '../lib/expires.js'
+import { perMinute, type RateLimitedRouteOptions } from '../lib/rate-limit.js'
 import { generateDeleteToken, hashDeleteToken, verifyDeleteToken } from '../lib/token.js'
 
 const { pastes } = schema
@@ -44,8 +45,11 @@ async function findActivePaste(code: string) {
   return paste
 }
 
-export const pasteRoutes: FastifyPluginAsync = async (app) => {
-  app.post('/api/pastes', { bodyLimit: PASTE_BODY_LIMIT }, async (request, reply) => {
+export const pasteRoutes: FastifyPluginAsync<RateLimitedRouteOptions> = async (app, { rateLimits }) => {
+  const createOpts = { bodyLimit: PASTE_BODY_LIMIT, config: perMinute(rateLimits.createPaste) }
+  const deleteOpts = { config: perMinute(rateLimits.delete) }
+
+  app.post('/api/pastes', createOpts, async (request, reply) => {
     const result = createPasteSchema.safeParse(request.body)
 
     if (!result.success) {
@@ -113,7 +117,7 @@ export const pasteRoutes: FastifyPluginAsync = async (app) => {
       .send(paste.content)
   })
 
-  app.delete<{ Params: CodeParams }>('/api/pastes/:code', async (request, reply) => {
+  app.delete<{ Params: CodeParams }>('/api/pastes/:code', deleteOpts, async (request, reply) => {
     const { code } = request.params
     const token = bearerToken(request)
 

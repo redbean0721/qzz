@@ -6,14 +6,18 @@ import { db, schema } from '../db/index.js'
 import { bearerToken } from '../lib/auth.js'
 import { CODE_PATTERN, insertWithUniqueCode } from '../lib/code.js'
 import { expiresAtFrom } from '../lib/expires.js'
+import { perMinute, type RateLimitedRouteOptions } from '../lib/rate-limit.js'
 import { generateDeleteToken, hashDeleteToken, verifyDeleteToken } from '../lib/token.js'
 
 const { links } = schema
 
 type CodeParams = { code: string }
 
-export const linkRoutes: FastifyPluginAsync = async (app) => {
-  app.post('/api/links', async (request, reply) => {
+export const linkRoutes: FastifyPluginAsync<RateLimitedRouteOptions> = async (app, { rateLimits }) => {
+  const createOpts = { config: perMinute(rateLimits.createLink) }
+  const deleteOpts = { config: perMinute(rateLimits.delete) }
+
+  app.post('/api/links', createOpts, async (request, reply) => {
     const result = createLinkSchema.safeParse(request.body)
 
     if (!result.success) {
@@ -73,7 +77,7 @@ export const linkRoutes: FastifyPluginAsync = async (app) => {
     return reply.header('cache-control', 'no-store').redirect(link.url, 302)
   })
 
-  app.delete<{ Params: CodeParams }>('/api/links/:code', async (request, reply) => {
+  app.delete<{ Params: CodeParams }>('/api/links/:code', deleteOpts, async (request, reply) => {
     const { code } = request.params
     const token = bearerToken(request)
 

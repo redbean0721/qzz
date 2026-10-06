@@ -1,9 +1,13 @@
 import { buildApp } from './app.js'
+import { TRUST_PROXY } from './config.js'
 
 const app = await buildApp({
-  logger: process.env.NODE_ENV === 'production'
-    ? true
-    : { transport: { target: 'pino-pretty' } },
+  fastify: {
+    logger: process.env.NODE_ENV === 'production'
+      ? true
+      : { transport: { target: 'pino-pretty' } },
+    trustProxy: TRUST_PROXY,
+  },
 })
 
 const port = Number(process.env.PORT ?? 3001)
