@@ -9,7 +9,8 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "typecheck": "nuxt typecheck",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "deploy": "wrangler deploy"
   },
   "dependencies": {
     "@iconify-json/lucide": "^1.2.140",
@@ -24,6 +25,7 @@
   },
   "devDependencies": {
     "typescript": "~6.0.3",
-    "vue-tsc": "^3.3.12"
+    "vue-tsc": "^3.3.12",
+    "wrangler": "^4.147.0"
   }
 }

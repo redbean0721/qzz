@@ -1,0 +1,19 @@
+// Nitro 在 build 時會把這份設定和自動產生的部分（main、assets、compatibility_*）合併，
+// 輸出到 .output/server/wrangler.json；在 apps/web 執行 wrangler deploy 會自動使用合併後的版本
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "qzz-web",
+  // 只走 qzz.tw，不開 *.workers.dev（那邊沒有 /v1 → API 的分流）
+  "workers_dev": false,
+  "routes": [
+    // qzz.tw/v1/* 要在 Cloudflare dashboard 另外加一條「不使用 Worker」的路由，讓 API 流量直接到 Tunnel
+    { "pattern": "qzz.tw/*", "zone_name": "qzz.tw" }
+  ],
+  "vars": {
+    // SSR 和短網址轉發連 API 用；Worker 對同 zone 的請求不會再進 Worker，/v1/* 會到 Tunnel 後的 API
+    "NUXT_API_BASE": "https://qzz.tw"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

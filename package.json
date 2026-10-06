@@ -12,6 +12,7 @@
     "dev:ext": "yarn workspace @qzz/extension dev",
     "build:shared": "yarn workspace @qzz/shared build",
     "dev:shared": "yarn workspace @qzz/shared dev",
+    "deploy:web": "yarn build:shared && yarn workspace @qzz/web build && yarn workspace @qzz/web deploy",
     "db:up": "docker compose -f deploy/docker-compose.dev.yml up -d",
     "db:down": "docker compose -f deploy/docker-compose.dev.yml down",
     "db:logs": "docker compose -f deploy/docker-compose.dev.yml logs -f",
