@@ -46,10 +46,23 @@ and restart the Deployment (`kubectl -n qzz rollout restart deploy/qzz-api`).
 Cloudflare dashboard → Zero Trust → Networks → Tunnels → Create a tunnel (cloudflared):
 
 1. Copy the token from the install command into the `cloudflared` secret above.
-2. Delete the placeholder DNS record `AAAA qzz.tw 100::` first (the tunnel needs to create its own record for `qzz.tw`).
-3. Public hostname: `qzz.tw`, path `^/v1/`, service `HTTP` → `qzz-api.qzz.svc.cluster.local:3001`.
+2. `qzz.tw` must have no other DNS record: delete any placeholder (`AAAA qzz.tw 100::`), and make sure the
+   `qzz-web` Worker is attached by **Route only — never as a Custom Domain**. A Custom Domain creates a
+   Workers-managed DNS record ("a DNS record managed by Workers already exists on that host" when adding the
+   tunnel route) and sends *every* path to the Worker, ignoring Workers Routes.
+3. Published application route (public hostname): `qzz.tw`, path `^/v1/`, service `HTTP` →
+   `qzz-api.qzz.svc.cluster.local:3001`. This creates the proxied Tunnel DNS record for `qzz.tw`.
    The path filter keeps everything else (e.g. `/health`) off the internet even if a Worker route is misconfigured.
-4. Workers Routes on the `qzz.tw` zone must still have `qzz.tw/v1/*` → **None**, otherwise the Worker takes the request.
+4. Zone `qzz.tw` → Workers Routes (add it from the zone page, not from the Worker's own settings, so "None" is
+   selectable) must list:
+
+   | Route          | Worker                       |
+   |----------------|------------------------------|
+   | `qzz.tw/v1/*`  | None ("Workers disabled")    |
+   | `qzz.tw/*`     | `qzz-web` (from wrangler.jsonc) |
+
+   Quick check: `curl https://qzz.tw/v1/links/xxxxxxx` must return the API's `{"error":"not found"}`;
+   a Nuxt-style `"Page not found: /v1/..."` means the Worker still takes `/v1/*`.
 
 ### 3. ArgoCD
 
