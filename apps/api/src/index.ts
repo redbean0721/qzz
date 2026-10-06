@@ -1,5 +1,7 @@
 import Fastify from 'fastify'
 import { createLinkSchema } from '@qzz/shared'
+import { sql } from 'drizzle-orm'
+import { db } from './db/index.js'
 
 const app = Fastify({
   logger: process.env.NODE_ENV === 'production'
@@ -8,7 +10,8 @@ const app = Fastify({
 })
 
 app.get('/health', async () => {
-  return { ok: true }
+  await db.execute(sql`select 1`)
+  return { ok: true, db: 'up' }
 })
 
 app.post('/api/links', async (request, reply) => {
