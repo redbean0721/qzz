@@ -32,6 +32,19 @@ if (error.value || !paste.value) {
 const rawUrl = `/v1/pastes/${code}/raw`
 const lineCount = computed(() => paste.value?.content.split('\n').length ?? 0)
 const copy = useCopy()
+
+// 伺服器端先輸出純文字；瀏覽器載入後才下載 Shiki 上色（不佔 Worker 的大小和 CPU）
+const highlighted = ref<string | null>(null)
+onMounted(async () => {
+  const current = paste.value
+  if (!current || !canHighlight(current.language, current.content)) return
+  try {
+    highlighted.value = await highlight(current.content, current.language)
+  } catch (err) {
+    // 上色失敗就維持純文字
+    console.warn('syntax highlighting failed', err)
+  }
+})
 </script>
 
 <template>
@@ -68,6 +81,6 @@ const copy = useCopy()
 
     <pre
       class="overflow-x-auto rounded-lg border border-default bg-elevated p-4 font-mono text-sm leading-relaxed"
-    >{{ paste.content }}</pre>
+    ><code v-if="highlighted" class="shiki-code" v-html="highlighted" /><template v-else>{{ paste.content }}</template></pre><!-- eslint-disable-line vue/no-v-html -- Shiki 輸出時已跳脫貼文內容 -->
   </div>
 </template>

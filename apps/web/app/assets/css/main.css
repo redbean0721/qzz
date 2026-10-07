@@ -1,2 +1,10 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
+
+/* 貼文的語法高亮（utils/highlight.ts）：Shiki 輸出兩套顏色變數，依深淺色模式套用 */
+.shiki-code span {
+  color: var(--shiki-light);
+}
+.dark .shiki-code span {
+  color: var(--shiki-dark);
+}
