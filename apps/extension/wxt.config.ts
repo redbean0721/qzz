@@ -1,5 +1,14 @@
+import { join } from 'node:path'
 import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'wxt'
+import { createNoticeCollector } from '../../tools/third-party-notices'
+
+const notices = createNoticeCollector({
+  title: 'qzz browser extension – third-party notices',
+  note: 'The extension icon is adapted from the "link" icon of Lucide (ISC License, see lucide-vue-next below).',
+  // popup 的 CSS 由 Tailwind 產生（含 preflight），不在 JS 模組清單裡
+  alwaysInclude: ['tailwindcss'],
+})
 
 // 開發時連本機的 Nuxt（它會把 /v1 轉給 :3001 的 API），正式 build 連 qzz.tw
 const API_ORIGIN = {
@@ -12,6 +21,17 @@ export default defineConfig({
   modules: ['@wxt-dev/module-vue', '@wxt-dev/auto-icons'],
   autoIcons: {
     baseIconPath: 'assets/icon.svg',
+  },
+  hooks: {
+    // WXT 會把彈出視窗和背景程式分開 build；全部 build 完後合併每一步打包的模組，寫進輸出目錄（zip 也會包含）
+    'build:done': (wxt, output) => {
+      for (const step of output.steps) {
+        for (const chunk of step.chunks) {
+          if (chunk.type === 'chunk') notices.add(chunk.moduleIds)
+        }
+      }
+      notices.write(join(wxt.config.outDir, 'THIRD_PARTY_NOTICES.txt'))
+    },
   },
   zip: {
     // qzz-0.1.0-chrome.zip（預設會從 @qzz/extension 變成 qzzextension）
@@ -27,6 +47,7 @@ export default defineConfig({
       '.node-version',
       'apps/extension/**',
       'packages/shared/**',
+      'tools/**',
       'apps/api/package.json',
       'apps/web/package.json',
     ],
