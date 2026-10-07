@@ -10,6 +10,8 @@
     "dev:web": "yarn workspace @qzz/web dev",
     "dev:api": "yarn workspace @qzz/api dev",
     "dev:ext": "yarn workspace @qzz/extension dev",
+    "build:ext": "yarn build:shared && yarn workspace @qzz/extension build && yarn workspace @qzz/extension build:firefox",
+    "zip:ext": "yarn build:shared && yarn workspace @qzz/extension zip && yarn workspace @qzz/extension zip:firefox",
     "build:shared": "yarn workspace @qzz/shared build",
     "dev:shared": "yarn workspace @qzz/shared dev",
     "deploy:web": "yarn build:shared && yarn workspace @qzz/web build && yarn workspace @qzz/web deploy",

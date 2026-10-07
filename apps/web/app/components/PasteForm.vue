@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import { MAX_PASTE_BYTES, createPasteSchema, type ExpiresIn, type PasteResponse } from '@qzz/shared'
+import {
+  MAX_PASTE_BYTES,
+  PASTE_LANGUAGES,
+  createPasteSchema,
+  type ExpiresIn,
+  type PasteResponse,
+} from '@qzz/shared'
 
-const LANGUAGES = [
-  'text', 'bash', 'c', 'cpp', 'css', 'go', 'html', 'java', 'javascript',
-  'json', 'markdown', 'python', 'rust', 'sql', 'typescript', 'yaml',
-].map((value) => ({ label: value === 'text' ? '純文字' : value, value }))
+const LANGUAGES = PASTE_LANGUAGES.map((value) => ({ label: value === 'text' ? '純文字' : value, value }))
 
-const state = reactive<{ content: string; language: string; expiresIn: ExpiresIn }>({
+const state = reactive<{ content: string; language: (typeof PASTE_LANGUAGES)[number]; expiresIn: ExpiresIn }>({
   content: '',
   language: 'text',
   expiresIn: '30d',

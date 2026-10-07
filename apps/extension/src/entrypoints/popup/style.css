@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+html {
+  color-scheme: light dark;
+}
+
+body {
+  /* 彈出視窗的寬度由內容決定，固定寬度避免開關時跳動 */
+  width: 380px;
+  @apply bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100;
+}

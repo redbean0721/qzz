@@ -38,3 +38,9 @@ export const pasteViewSchema = z.object({
 })
 
 export type PasteView = z.infer<typeof pasteViewSchema>
+
+// 建立貼文時可選的語言（之後做語法高亮時也當白名單用）；text = 純文字
+export const PASTE_LANGUAGES = [
+  'text', 'bash', 'c', 'cpp', 'css', 'go', 'html', 'java', 'javascript',
+  'json', 'markdown', 'python', 'rust', 'sql', 'typescript', 'yaml',
+] as const

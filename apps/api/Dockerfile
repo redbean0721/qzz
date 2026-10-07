@@ -11,6 +11,7 @@ RUN corepack enable
 COPY package.json yarn.lock .yarnrc.yml ./
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
+COPY apps/extension/package.json apps/extension/
 COPY packages/shared/package.json packages/shared/
 RUN --mount=type=cache,target=/root/.yarn/berry/cache \
     yarn workspaces focus @qzz/api @qzz/shared

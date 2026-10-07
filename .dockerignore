@@ -9,6 +9,8 @@
 deploy
 CLAUDE.md
 
-# web 只需要 package.json：yarn 要靠所有 workspace 的 manifest 對齊 lockfile
+# web 和 extension 只需要 package.json：yarn 要靠所有 workspace 的 manifest 對齊 lockfile
 apps/web/*
 !apps/web/package.json
+apps/extension/*
+!apps/extension/package.json
