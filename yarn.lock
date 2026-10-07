@@ -3251,6 +3251,7 @@ __metadata:
   dependencies:
     "@qzz/shared": "workspace:*"
     "@tailwindcss/vite": "npm:^4.3.3"
+    "@types/node": "npm:^26.6.4"
     "@wxt-dev/auto-icons": "npm:^1.1.2"
     "@wxt-dev/module-vue": "npm:^1.0.3"
     lucide-vue-next: "npm:^1.0.0"
