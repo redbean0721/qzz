@@ -29,6 +29,7 @@ async function createLink(payload: object) {
 }
 
 test('POST /v1/links creates a link and stores only the token hash', async () => {
+  const before = Date.now()
   const res = await createLink({ url: 'https://example.com/a?b=c' })
   assert.equal(res.statusCode, 201)
 
@@ -36,12 +37,20 @@ test('POST /v1/links creates a link and stores only the token hash', async () =>
   assert.match(body.code, /^[0-9A-Za-z]{7}$/)
   assert.equal(body.shortUrl, `${process.env.PUBLIC_BASE_URL?.replace(/\/+$/, '')}/${body.code}`)
   assert.equal(body.url, 'https://example.com/a?b=c')
-  assert.equal(body.expiresAt, null)
+  // 沒指定 expiresIn 時預設 1 天
+  const expiresAt = Date.parse(body.expiresAt!)
+  assert.ok(expiresAt >= before + 86_400_000 && expiresAt <= Date.now() + 86_400_000)
 
   const [row] = await db.select().from(links).where(eq(links.code, body.code))
   assert.ok(row)
   assert.equal(row.deleteTokenHash, hashDeleteToken(body.deleteToken))
   assert.notEqual(row.deleteTokenHash, body.deleteToken)
+})
+
+test('POST /v1/links keeps expiresIn "never" permanent', async () => {
+  const res = await createLink({ url: 'https://example.com/forever', expiresIn: 'never' })
+  assert.equal(res.statusCode, 201)
+  assert.equal(res.json<LinkResponse>().expiresAt, null)
 })
 
 test('POST /v1/links sets expiresAt from expiresIn', async () => {

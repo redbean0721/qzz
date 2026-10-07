@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { createLinkSchema, type ExpiresIn, type LinkResponse } from '@qzz/shared'
 
-const state = reactive<{ url: string; expiresIn: ExpiresIn }>({ url: '', expiresIn: 'never' })
+const state = reactive<{ url: string; expiresIn: ExpiresIn }>({ url: '', expiresIn: '1d' })
 const loading = ref(false)
 const result = ref<LinkResponse | null>(null)
 

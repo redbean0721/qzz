@@ -8,7 +8,7 @@ import ExpirySelect from './ExpirySelect.vue'
 const url = defineModel<string>('url', { required: true })
 const emit = defineEmits<{ created: [LinkResponse] }>()
 
-const expiresIn = ref<ExpiresIn>('never')
+const expiresIn = ref<ExpiresIn>('1d')
 const loading = ref(false)
 const error = ref('')
 
