@@ -51,7 +51,8 @@ export default defineConfig({
       'apps/api/package.json',
       'apps/web/package.json',
     ],
-    excludeSources: ['**/node_modules/**', '**/.output/**', '**/.wxt/**', '**/dist/**', '**/.env*'],
+    // store/：商店用的圖片和產生腳本，審核用不到
+    excludeSources: ['**/node_modules/**', '**/.output/**', '**/.wxt/**', '**/dist/**', '**/.env*', 'apps/extension/store/**'],
   },
   // Chrome / Edge 用 MV3；Firefox 用 WXT 預設的 MV2（MV3 的網站權限要使用者另外手動允許）
   manifest: ({ browser, mode }) => {
