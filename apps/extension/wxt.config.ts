@@ -67,6 +67,9 @@ export default defineConfig({
         browser_specific_settings: {
           gecko: {
             id: 'extension@qzz.tw',
+            // 內建的資料收集同意畫面（data_collection_permissions）從 Firefox 140 才有；
+            // 支援更舊的版本就得自己做一個安裝後跳出的同意畫面
+            strict_min_version: '140.0',
             // 使用者送出的網址（browsingActivity）和選取的文字（websiteContent）會傳到 qzz.tw
             data_collection_permissions: { required: ['browsingActivity', 'websiteContent'] },
           },

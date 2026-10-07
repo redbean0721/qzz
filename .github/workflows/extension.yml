@@ -1,0 +1,93 @@
+name: Extension
+
+# build 並打包擴充功能，放進這次執行的 Artifacts；下載後手動上傳到 AMO / Chrome Web Store（不做 release、不自動上架）
+on:
+  push:
+    branches: [main]
+    paths:
+      - apps/extension/**
+      - packages/shared/**
+      - tools/**
+      - package.json
+      - yarn.lock
+      - .node-version
+      - .github/workflows/extension.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+
+      # 跟 AMO 審核人員從原始碼重 build 的步驟一樣（apps/extension/README.md）
+      - name: Install dependencies (extension + shared only)
+        run: |
+          corepack enable
+          yarn workspaces focus @qzz/extension @qzz/shared
+
+      - run: yarn build:shared
+      - run: yarn workspace @qzz/extension typecheck
+      - run: yarn workspace @qzz/extension test
+
+      - name: Build and zip (Chrome, Firefox + sources)
+        run: |
+          yarn workspace @qzz/extension zip
+          yarn workspace @qzz/extension zip:firefox
+
+      - id: meta
+        name: Check the zips
+        run: |
+          version=$(node -p "require('./apps/extension/package.json').version")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          cd apps/extension/.output
+          for browser in chrome firefox; do
+            unzip -l "qzz-$version-$browser.zip" | grep -q THIRD_PARTY_NOTICES.txt
+            test "$(unzip -p "qzz-$version-$browser.zip" manifest.json | node -p "JSON.parse(require('fs').readFileSync(0)).version")" = "$version"
+          done
+          unzip -l "qzz-$version-sources.zip" | grep -q apps/extension/wxt.config.ts
+          ls -l ./*.zip
+
+      # archive: false = 原樣上傳單一檔案，下載到的就是可以直接送審的 zip（artifact 名稱 = 檔名）
+      - uses: actions/upload-artifact@v7
+        with:
+          path: apps/extension/.output/qzz-${{ steps.meta.outputs.version }}-firefox.zip
+          archive: false
+          if-no-files-found: error
+          retention-days: 30
+
+      - uses: actions/upload-artifact@v7
+        with:
+          path: apps/extension/.output/qzz-${{ steps.meta.outputs.version }}-sources.zip
+          archive: false
+          if-no-files-found: error
+          retention-days: 30
+
+      - uses: actions/upload-artifact@v7
+        with:
+          path: apps/extension/.output/qzz-${{ steps.meta.outputs.version }}-chrome.zip
+          archive: false
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Summary
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          {
+            echo "## qzz extension v${VERSION} (${GITHUB_SHA::7})"
+            echo
+            echo "| Store | Upload |"
+            echo "|---|---|"
+            echo "| Firefox (AMO) | \`qzz-${VERSION}-firefox.zip\` + source code \`qzz-${VERSION}-sources.zip\` |"
+            echo "| Chrome / Edge | \`qzz-${VERSION}-chrome.zip\` |"
+            echo
+            echo "Stores reject a version number they already have: bump \`version\` in apps/extension/package.json before the next submission."
+          } >> "$GITHUB_STEP_SUMMARY"

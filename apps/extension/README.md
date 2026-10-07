@@ -29,11 +29,13 @@ Run the API (`PUBLIC_BASE_URL=http://localhost:3000`) and `yarn dev:web`, then l
 
 ## Release
 
-```sh
-yarn zip:ext   # → .output/qzz-extension-<version>-chrome.zip, -firefox.zip and -sources.zip
-```
+1. Bump `version` in `package.json` (stores reject a version they already have) and push to `main`.
+2. The **Extension** workflow (`.github/workflows/extension.yml`, also runnable by hand) typechecks, tests and
+   builds, then attaches three artifacts to the run, each uploaded as-is (no extra zip layer):
+   `qzz-<version>-firefox.zip`, `qzz-<version>-sources.zip`, `qzz-<version>-chrome.zip` (kept 30 days).
+3. Download them from the run page and upload to the stores by hand.
 
-Bump `version` in `package.json` first.
+Locally the same files come from `yarn zip:ext` (→ `apps/extension/.output/`).
 
 - **Chrome Web Store** (one-time US$5 developer registration): upload the chrome zip. Edge Add-ons accepts the
   same zip (free).
@@ -48,7 +50,9 @@ Bump `version` in `package.json` first.
   ```
 
   The manifest declares `data_collection_permissions: browsingActivity, websiteContent` because the URLs and
-  selected text the user submits are sent to qzz.tw.
+  selected text the user submits are sent to qzz.tw, and `strict_min_version: 140.0` (Firefox's built-in data
+  consent prompt starts at 140; older versions would need our own consent screen). Choose **Firefox desktop
+  only** on AMO: Firefox for Android has no context menus or `windows` API.
 
 Permissions: `activeTab` (current tab URL), `contextMenus`, `storage`, `clipboardWrite`, `scripting` (Chrome:
 read the exact selection, keeping newlines; Firefox MV2 uses `tabs.executeScript`), host `https://qzz.tw/*`.
