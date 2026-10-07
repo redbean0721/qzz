@@ -16,6 +16,7 @@
     <footer class="border-t border-default">
       <p class="mx-auto max-w-3xl px-4 py-4 text-xs text-muted">
         qzz.tw — 免登入的短網址與貼文服務。請勿用於散布惡意或違法內容。
+        <NuxtLink to="/privacy" class="ml-1 underline">隱私權政策</NuxtLink>
         <a href="/third-party-notices.txt" class="ml-1 underline">開放原始碼授權</a>
       </p>
     </footer>
