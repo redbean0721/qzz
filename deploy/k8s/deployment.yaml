@@ -38,7 +38,7 @@ spec:
         # 套用 DB migration；多個 Pod 同時啟動時由 advisory lock 排隊
         - name: migrate
           # image tag 由 GitHub workflow 改寫，兩處要一致
-          image: ghcr.io/redbean0721/qzz-api:sha-222b745
+          image: ghcr.io/redbean0721/qzz-api:sha-6606ce5
           command: ["node", "dist/migrate.js"]
           envFrom:
             - secretRef:
@@ -57,7 +57,7 @@ spec:
 
       containers:
         - name: api
-          image: ghcr.io/redbean0721/qzz-api:sha-222b745
+          image: ghcr.io/redbean0721/qzz-api:sha-6606ce5
           ports:
             - name: http
               containerPort: 3001
