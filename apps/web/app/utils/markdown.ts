@@ -5,6 +5,7 @@ import type { MarkdownIt, Token } from 'markdown-it'
 // - html: false（預設）：貼文裡的 HTML 原樣跳脫顯示，不會變成標籤
 // - 連結只接受 http / https / mailto 和相對路徑，一律開新分頁並加 nofollow
 // - 圖片不載入（會把看貼文的人的 IP 送到第三方伺服器），改成指向圖片的連結
+// - 數學公式由 KaTeX 排版（setUpMath）
 const LINK_REL = 'nofollow noopener noreferrer ugc'
 const ALLOWED_LINK = /^(https?:|mailto:)/i
 const HAS_SCHEME = /^[a-z][a-z0-9+.-]*:/i
@@ -30,10 +31,30 @@ export async function renderMarkdown(content: string): Promise<string> {
     return `<a href="${md.utils.escapeHtml(src)}" target="_blank" rel="${LINK_REL}">${label}</a>`
   }
 
+  await setUpMath(md, content)
+
   const env = {}
   const tokens = md.parse(content, env)
   await setUpCodeHighlighting(md, tokens, content)
   return md.renderer.render(tokens, md.options, env)
+}
+
+// 數學公式（$...$、$$...$$、```math）用 KaTeX 排版。KaTeX 和它的 CSS / 字型很大，內容看起來有公式才載入。
+// KaTeX 預設 trust: false（擋掉 \href、\includegraphics 這類指令）、maxExpand 1000；公式寫錯只顯示紅字，不會讓整頁失敗。
+// \(...\) 不啟用：在 Markdown 裡 \( 本來就是跳脫的括號
+const MATH_HINT = /\$|^\s*(`{3,}|~{3,})\s*math\b/m
+
+async function setUpMath(md: MarkdownIt, content: string) {
+  if (!MATH_HINT.test(content)) return
+  const [{ katex }] = await Promise.all([import('@mdit/plugin-katex'), import('katex/dist/katex.min.css')])
+  md.use(katex, {
+    delimiters: 'dollars',
+    mathFence: true,
+    // 單位 em：避免 \rule{1000em}{1000em} 這類撐爆版面的內容
+    maxSize: 5,
+    // 不認得的符號、數學模式裡的中文等只是警告，不要洗版 console
+    logger: () => 'ignore' as const,
+  })
 }
 
 function insideLink(tokens: Token[], idx: number) {

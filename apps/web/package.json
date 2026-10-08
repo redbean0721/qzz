@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@iconify-json/lucide": "^1.2.140",
+    "@mdit/plugin-katex": "^1.1.3",
     "@nuxt/eslint": "1.17.0",
     "@nuxt/ui": "^4.11.3",
     "@qzz/shared": "workspace:*",
@@ -21,6 +22,7 @@
     "@shikijs/themes": "^4.5.0",
     "@tailwindcss/typography": "^0.5.20",
     "eslint": "^9.0.0 || ^10.0.0",
+    "katex": "^0.18.9",
     "markdown-it": "^15.0.2",
     "nuxt": "^4.5.2",
     "shiki": "^4.5.0",

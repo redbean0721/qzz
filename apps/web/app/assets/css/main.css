@@ -39,3 +39,9 @@
 .markdown-body blockquote p:last-of-type::after {
   content: none;
 }
+/* 很長的區塊公式橫向捲動，不要撐開版面 */
+.markdown-body .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.25rem 0;
+}
