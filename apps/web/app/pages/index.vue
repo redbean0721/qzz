@@ -20,6 +20,8 @@ const tabs = [
       </template>
     </UTabs>
 
+    <ExtensionLinks />
+
     <!-- 紀錄存在 localStorage，只在瀏覽器端渲染 -->
     <ClientOnly>
       <HistoryList />
