@@ -15,8 +15,8 @@
 
     <footer class="border-t border-default">
       <p class="mx-auto max-w-3xl px-4 py-4 text-center text-xs text-muted sm:text-left">
-        <!-- 手機置中、每句一行；桌面靠左接在同一行 -->
-        qzz.tw — 免登入的短網址與貼文服務。<span class="block sm:inline">請勿用於散布惡意或違法內容。</span>
+        <!-- 手機置中、連結換到下一行；桌面靠左接在同一行 -->
+        qzz.tw — 免登入的短網址與貼文服務。請勿用於散布惡意或違法內容。
         <span class="mt-1 block sm:mt-0 sm:ml-1 sm:inline">
           <NuxtLink to="/privacy" class="underline">隱私權政策</NuxtLink>
           <a href="/third-party-notices.txt" class="ml-1 underline">開放原始碼授權</a>
