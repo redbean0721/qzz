@@ -9,7 +9,7 @@ const content = defineModel<string>('content', { required: true })
 const emit = defineEmits<{ created: [PasteResponse] }>()
 
 const language = ref<string>('text')
-const expiresIn = ref<ExpiresIn>('30d')
+const expiresIn = ref<ExpiresIn>('1d')
 const loading = ref(false)
 const error = ref('')
 

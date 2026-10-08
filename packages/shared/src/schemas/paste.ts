@@ -14,7 +14,7 @@ export const createPasteSchema = z.object({
     // Postgres TEXT 不能存 NUL
     .refine((s) => !s.includes('\0'), '內容不可包含 NUL 字元'),
   language: z.string().max(32).optional(),
-  expiresIn: expiresInSchema.default('30d'),
+  expiresIn: expiresInSchema.default('1d'),
 })
 
 export type CreatePasteInput = z.input<typeof createPasteSchema>

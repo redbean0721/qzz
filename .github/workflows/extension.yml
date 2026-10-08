@@ -1,6 +1,7 @@
 name: Extension
 
-# build 並打包擴充功能，放進這次執行的 Artifacts；下載後手動上傳到 AMO / Chrome Web Store（不做 release、不自動上架）
+# build 並打包擴充功能，放進這次執行的 Artifacts（可以下載後手動上傳）。
+# extension-release.yml 也透過 workflow_call 用這個 job build，再建立 release、送商店審核
 on:
   push:
     branches: [main]
@@ -14,6 +15,11 @@ on:
       - .node-version
       - .github/workflows/extension.yml
   workflow_dispatch:
+  workflow_call:
+    outputs:
+      version:
+        description: apps/extension/package.json version
+        value: ${{ jobs.build.outputs.version }}
 
 permissions:
   contents: read
@@ -21,6 +27,8 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
     steps:
       - uses: actions/checkout@v7
 

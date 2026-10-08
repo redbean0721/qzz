@@ -33,9 +33,24 @@ Run the API (`PUBLIC_BASE_URL=http://localhost:3000`) and `yarn dev:web`, then l
 2. The **Extension** workflow (`.github/workflows/extension.yml`, also runnable by hand) typechecks, tests and
    builds, then attaches three artifacts to the run, each uploaded as-is (no extra zip layer):
    `qzz-<version>-firefox.zip`, `qzz-<version>-sources.zip`, `qzz-<version>-chrome.zip` (kept 30 days).
-3. Download them from the run page and upload to the stores by hand.
+3. Push a tag `extension-v<version>` on that commit. **Extension release**
+   (`.github/workflows/extension-release.yml`) builds again from the tag, checks the tag matches `version`,
+   creates the GitHub release with the three zips (or adds them to a release you already created on that tag),
+   then submits to the stores that are switched on:
 
-Locally the same files come from `yarn zip:ext` (→ `apps/extension/.output/`).
+   | Store | Repository variable | Environment secrets |
+   |---|---|---|
+   | Chrome Web Store (API v2, service account) | `PUBLISH_CHROME=true`, `CHROME_PUBLISHER_ID` | `chrome-web-store`: `CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL`, `CHROME_SERVICE_ACCOUNT_PRIVATE_KEY` |
+   | Firefox Add-ons (listed + sources zip) | `PUBLISH_FIREFOX=true` | `firefox-addons`: `FIREFOX_JWT_ISSUER`, `FIREFOX_JWT_SECRET` |
+
+   The item IDs (`mjoadeofebgfmgoolhccpefhjicjgpac`, `extension@qzz.tw`) are in the workflow. Submitting uses
+   `wxt submit` (publish-browser-extension); the store still reviews each version before it goes live.
+   **Run workflow** by hand defaults to a dry run that only checks the credentials against each store; anything
+   not on a tag is always a dry run. The private key may be pasted as PEM or as the JSON value with `\n`.
+   If a submission fails (e.g. a review is still pending), re-run the failed job once the store is ready.
+
+Without the tag, download the artifacts from step 2 and upload by hand. Locally the same files come from
+`yarn zip:ext` (→ `apps/extension/.output/`).
 
 - **Chrome Web Store** (one-time US$5 developer registration): upload the chrome zip. Edge Add-ons accepts the
   same zip (free).

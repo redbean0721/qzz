@@ -1,0 +1,144 @@
+name: Extension release
+
+# 推 tag extension-v<版本>：build（重用 extension.yml）→ GitHub Release 附上三個 zip → 送 Chrome Web Store / AMO 審核。
+# 要送哪個商店由 repository variables PUBLISH_CHROME / PUBLISH_FIREFOX（= true）決定；金鑰放在各自的 environment secrets。
+# 手動執行（Run workflow）預設是 dry run：只拿金鑰向商店查詢一次確認設定正確，不上傳、不建 release。
+# 不是 tag 的 ref 一律是 dry run，真正送審只會發生在 tag 上
+on:
+  push:
+    tags: ['extension-v*']
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Only verify the store credentials (no upload, no release)
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: extension-release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    uses: ./.github/workflows/extension.yml
+
+  release:
+    needs: build
+    if: github.ref_type == 'tag' && !(github.event_name == 'workflow_dispatch' && inputs.dry_run)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ github.ref_name }}
+      VERSION: ${{ needs.build.outputs.version }}
+    steps:
+      - name: Check the tag matches the version
+        run: |
+          if [ "$TAG" != "extension-v$VERSION" ]; then
+            echo "::error::tag $TAG does not match apps/extension/package.json version $VERSION"
+            exit 1
+          fi
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: qzz-${{ needs.build.outputs.version }}-*.zip
+          merge-multiple: true
+          path: zips
+
+      # 在 GitHub 網頁上先建好 release 再推 tag 也可以：已存在就只補上 zip
+      - name: Create or update the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -l zips
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload "$TAG" zips/*.zip --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" zips/*.zip --repo "$GITHUB_REPOSITORY" --verify-tag \
+              --title "Extension v$VERSION" --generate-notes
+          fi
+
+  chrome:
+    needs: [build, release]
+    # release 在 dry run 時是 skipped；tag 和版本對不上（release failure）就不送
+    if: >-
+      !cancelled() && needs.build.result == 'success' &&
+      contains(fromJSON('["success", "skipped"]'), needs.release.result) &&
+      vars.PUBLISH_CHROME == 'true'
+    runs-on: ubuntu-latest
+    environment: chrome-web-store
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+
+      # 只為了 wxt submit（publish-browser-extension，版本跟著 yarn.lock）；zip 用 build job 產出的那個
+      - name: Install dependencies (extension only)
+        run: |
+          corepack enable
+          yarn workspaces focus @qzz/extension
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: qzz-${{ needs.build.outputs.version }}-chrome.zip
+          merge-multiple: true
+          path: zips
+
+      - name: Submit to the Chrome Web Store
+        working-directory: apps/extension
+        env:
+          DRY_RUN: ${{ github.ref_type != 'tag' || (github.event_name == 'workflow_dispatch' && inputs.dry_run) }}
+          CHROME_API_VERSION: v2
+          CHROME_EXTENSION_ID: mjoadeofebgfmgoolhccpefhjicjgpac
+          CHROME_PUBLISHER_ID: ${{ vars.CHROME_PUBLISHER_ID }}
+          CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL: ${{ secrets.CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL }}
+          PRIVATE_KEY: ${{ secrets.CHROME_SERVICE_ACCOUNT_PRIVATE_KEY }}
+          ZIP: ${{ github.workspace }}/zips/qzz-${{ needs.build.outputs.version }}-chrome.zip
+        run: |
+          # secret 可以是 PEM 原文，也可以是 JSON 金鑰檔裡帶著 "\n" 的那一行
+          export CHROME_SERVICE_ACCOUNT_PRIVATE_KEY="${PRIVATE_KEY//\\n/$'\n'}"
+          yarn wxt submit --chrome-zip "$ZIP"
+
+  firefox:
+    needs: [build, release]
+    if: >-
+      !cancelled() && needs.build.result == 'success' &&
+      contains(fromJSON('["success", "skipped"]'), needs.release.result) &&
+      vars.PUBLISH_FIREFOX == 'true'
+    runs-on: ubuntu-latest
+    environment: firefox-addons
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+
+      - name: Install dependencies (extension only)
+        run: |
+          corepack enable
+          yarn workspaces focus @qzz/extension
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: qzz-${{ needs.build.outputs.version }}-*.zip
+          merge-multiple: true
+          path: zips
+
+      # listed 頻道 + 原始碼 zip（審核人員用它重 build，步驟在 apps/extension/README.md）
+      - name: Submit to addons.mozilla.org
+        working-directory: apps/extension
+        env:
+          DRY_RUN: ${{ github.ref_type != 'tag' || (github.event_name == 'workflow_dispatch' && inputs.dry_run) }}
+          FIREFOX_EXTENSION_ID: extension@qzz.tw
+          FIREFOX_CHANNEL: listed
+          FIREFOX_JWT_ISSUER: ${{ secrets.FIREFOX_JWT_ISSUER }}
+          FIREFOX_JWT_SECRET: ${{ secrets.FIREFOX_JWT_SECRET }}
+          ZIP: ${{ github.workspace }}/zips/qzz-${{ needs.build.outputs.version }}-firefox.zip
+          SOURCES_ZIP: ${{ github.workspace }}/zips/qzz-${{ needs.build.outputs.version }}-sources.zip
+        run: yarn wxt submit --firefox-zip "$ZIP" --firefox-sources-zip "$SOURCES_ZIP"

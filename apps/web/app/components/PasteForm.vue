@@ -12,7 +12,7 @@ const LANGUAGES = PASTE_LANGUAGES.map((value) => ({ label: value === 'text' ? 'ç
 const state = reactive<{ content: string; language: (typeof PASTE_LANGUAGES)[number]; expiresIn: ExpiresIn }>({
   content: '',
   language: 'text',
-  expiresIn: '30d',
+  expiresIn: '1d',
 })
 const loading = ref(false)
 const result = ref<PasteResponse | null>(null)

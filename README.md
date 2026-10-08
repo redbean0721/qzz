@@ -107,18 +107,18 @@ yarn workspace @qzz/extension build --mode development   # 連到 http://localho
 | `POST` | `/v1/links` | 建立短網址：`{ "url": "https://…", "expiresIn": "1h" \| "1d" \| "7d" \| "30d" \| "never" }` |
 | `GET` | `/v1/links/:code` | 302 轉址到原始網址 |
 | `DELETE` | `/v1/links/:code` | 刪除，需要 `Authorization: Bearer <deleteToken>` |
-| `POST` | `/v1/pastes` | 建立貼文：`{ "content": "…", "language": "typescript", "expiresIn": "30d" }` |
+| `POST` | `/v1/pastes` | 建立貼文：`{ "content": "…", "language": "typescript", "expiresIn": "7d" }` |
 | `GET` | `/v1/pastes/:code` | 取得貼文（JSON） |
 | `GET` | `/v1/pastes/:code/raw` | 純文字內容 |
 | `DELETE` | `/v1/pastes/:code` | 刪除，需要 `Authorization: Bearer <deleteToken>` |
 
-建立成功時回傳的 `deleteToken` 只會出現這一次，伺服器只保存它的雜湊值。
+`expiresIn` 省略時預設為 `1d`。建立成功時回傳的 `deleteToken` 只會出現這一次，伺服器只保存它的雜湊值。
 
 ## 部署
 
 - **網站**：push 到 `main` 後自動建置與部署
 - **API**：GitHub Actions 測試後建置 amd64 / arm64 映像檔推到 GHCR，再把新的映像檔標籤 commit 回 `deploy/k8s/deployment.yaml`，由 ArgoCD 同步到 k3s。資料庫 migration 在 Pod 啟動前自動執行
-- **擴充功能**：GitHub Actions 打包 Chrome、Firefox 與原始碼 zip 放在 workflow 的 Artifacts，下載後手動上傳到各商店
+- **擴充功能**：推上 `extension-v<版本>` tag 後，GitHub Actions 打包 Chrome、Firefox 與原始碼 zip，建立 GitHub Release，並自動送到 Chrome 線上應用程式商店與 Firefox Add-ons 審核（設定見 [apps/extension/README.md](apps/extension/README.md#release)）
 
 API 每次部署都會在 `main` 多一個 `deploy:` commit，push 前記得先 `git pull`。k3s 的部署設定見 [deploy/README.md](deploy/README.md)。
 

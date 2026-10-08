@@ -28,7 +28,7 @@ async function createPaste(payload: object) {
   return res
 }
 
-test('POST /v1/pastes creates a paste with default 30d expiry', async () => {
+test('POST /v1/pastes creates a paste with default 1d expiry', async () => {
   const before = Date.now()
   const res = await createPaste({ content: 'hello\nworld', language: 'text' })
   assert.equal(res.statusCode, 201)
@@ -40,8 +40,8 @@ test('POST /v1/pastes creates a paste with default 30d expiry', async () => {
   assert.equal(body.rawUrl, `${base}/v1/pastes/${body.code}/raw`)
 
   const expiresAt = Date.parse(body.expiresAt!)
-  const thirtyDays = 30 * 24 * 3600_000
-  assert.ok(expiresAt >= before + thirtyDays && expiresAt <= Date.now() + thirtyDays)
+  const oneDay = 24 * 3600_000
+  assert.ok(expiresAt >= before + oneDay && expiresAt <= Date.now() + oneDay)
 
   const [row] = await db.select().from(pastes).where(eq(pastes.code, body.code))
   assert.ok(row)
