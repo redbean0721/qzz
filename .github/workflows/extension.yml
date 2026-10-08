@@ -97,7 +97,11 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: extension-zips
-          path: apps/extension/.output/qzz-${{ steps.meta.outputs.version }}-*.zip
+          # 不能用 qzz-*.zip：萬用字元會從 .output 開始搜尋，而點開頭的目錄預設被當成隱藏檔略過
+          path: |
+            apps/extension/.output/qzz-${{ steps.meta.outputs.version }}-chrome.zip
+            apps/extension/.output/qzz-${{ steps.meta.outputs.version }}-firefox.zip
+            apps/extension/.output/qzz-${{ steps.meta.outputs.version }}-sources.zip
           if-no-files-found: error
           retention-days: 7
 
