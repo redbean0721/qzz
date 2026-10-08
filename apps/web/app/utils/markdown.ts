@@ -1,4 +1,4 @@
-import type { MarkdownIt, Token } from 'markdown-it'
+import type { Env, MarkdownIt, Token } from 'markdown-it'
 
 // Markdown 貼文的預覽，跟語法高亮一樣只在瀏覽器端、需要時才載入（不進 Worker）。
 // 貼文是任何人都能建立的內容，所以：
@@ -6,11 +6,22 @@ import type { MarkdownIt, Token } from 'markdown-it'
 // - 連結只接受 http / https / mailto 和相對路徑，一律開新分頁並加 nofollow
 // - 圖片不載入（會把看貼文的人的 IP 送到第三方伺服器），改成指向圖片的連結
 // - 數學公式由 KaTeX 排版（setUpMath）
+// - 程式碼可以複製（addCopyTargets）：回傳的 codes 是原始程式碼，HTML 裡只放它的索引 data-copy
 const LINK_REL = 'nofollow noopener noreferrer ugc'
 const ALLOWED_LINK = /^(https?:|mailto:)/i
 const HAS_SCHEME = /^[a-z][a-z0-9+.-]*:/i
 
-export async function renderMarkdown(content: string): Promise<string> {
+export interface RenderedMarkdown {
+  html: string
+  // data-copy="<索引>" 對應的原始程式碼
+  codes: string[]
+}
+
+interface RenderEnv extends Env {
+  codes: string[]
+}
+
+export async function renderMarkdown(content: string): Promise<RenderedMarkdown> {
   const { default: MarkdownIt } = await import('markdown-it')
   const md = new MarkdownIt({ linkify: true })
   md.validateLink = (url) => !HAS_SCHEME.test(url) || ALLOWED_LINK.test(url)
@@ -31,12 +42,49 @@ export async function renderMarkdown(content: string): Promise<string> {
     return `<a href="${md.utils.escapeHtml(src)}" target="_blank" rel="${LINK_REL}">${label}</a>`
   }
 
+  // 數學要先設定：它會包住 fence 規則（```math），複製按鈕再包在外層
   await setUpMath(md, content)
+  addCopyTargets(md)
 
-  const env = {}
+  const env: RenderEnv = { codes: [] }
   const tokens = md.parse(content, env)
   await setUpCodeHighlighting(md, tokens, content)
-  return md.renderer.render(tokens, md.options, env)
+  return { html: md.renderer.render(tokens, md.options, env), codes: env.codes }
+}
+
+// Lucide 的 copy / check 圖示（ISC，跟網站其他圖示同一套）
+const svg = (body: string, className: string) =>
+  `<svg class="${className}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">${body}</svg>`
+const COPY_ICON = svg(
+  '<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></g>',
+  'icon-copy',
+)
+const CHECK_ICON = svg(
+  '<path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 6L9 17l-5-5"/>',
+  'icon-check',
+)
+
+// 程式碼區塊右上角加複製按鈕；行內程式碼點一下就複製（在連結裡的除外，點了要開連結）。
+// 點擊由頁面在外層容器統一處理（v-html 的內容不能綁 Vue 事件）
+function addCopyTargets(md: MarkdownIt) {
+  const rules = md.renderer.rules
+  for (const name of ['fence', 'code_block'] as const) {
+    const render = rules[name]!
+    rules[name] = (tokens, idx, options, env, self) => {
+      const html = render(tokens, idx, options, env, self)
+      // ```math 已經被 KaTeX 換成公式，不是 <pre>
+      if (!html.trimStart().startsWith('<pre')) return html
+      const index = (env as RenderEnv).codes.push(tokens[idx]!.content.replace(/\n$/, '')) - 1
+      return `<div class="code-block">${html}<button type="button" class="copy-button" data-copy="${index}" title="複製" aria-label="複製程式碼">${COPY_ICON}${CHECK_ICON}</button></div>\n`
+    }
+  }
+
+  const renderInline = rules.code_inline!
+  rules.code_inline = (tokens, idx, options, env, self) => {
+    if (insideLink(tokens, idx)) return renderInline(tokens, idx, options, env, self)
+    const index = (env as RenderEnv).codes.push(tokens[idx]!.content) - 1
+    return `<code class="copyable" data-copy="${index}" role="button" tabindex="0" title="點擊複製">${md.utils.escapeHtml(tokens[idx]!.content)}</code>`
+  }
 }
 
 // 數學公式（$...$、$$...$$、```math）用 KaTeX 排版。KaTeX 和它的 CSS / 字型很大，內容看起來有公式才載入。

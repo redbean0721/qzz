@@ -55,7 +55,7 @@ const viewTabs = [
   { label: '預覽', value: 'preview', icon: 'i-lucide-eye' },
   { label: '原始碼', value: 'source', icon: 'i-lucide-code' },
 ]
-const rendered = ref<string | null>(null)
+const rendered = shallowRef<RenderedMarkdown | null>(null)
 
 onMounted(async () => {
   const current = paste.value
@@ -68,6 +68,31 @@ onMounted(async () => {
     view.value = 'source'
   }
 })
+
+// 預覽裡的程式碼（utils/markdown.ts 標上 data-copy）：區塊右上角的按鈕、行內程式碼本身，點了就複製原始內容
+function copyTarget(event: Event) {
+  const target = (event.target as Element | null)?.closest<HTMLElement>('[data-copy]')
+  if (!target) return null
+  const text = rendered.value?.codes[Number(target.dataset.copy)]
+  return text === undefined ? null : { target, text }
+}
+
+async function onPreviewClick(event: MouseEvent) {
+  const hit = copyTarget(event)
+  // 在行內程式碼上拖曳選取文字時不要複製
+  if (!hit || (hit.target.tagName === 'CODE' && window.getSelection()?.toString())) return
+  await copy(hit.text)
+  hit.target.classList.add('copied')
+  setTimeout(() => hit.target.classList.remove('copied'), 1500)
+}
+
+// 行內程式碼是 role="button" 的 <code>，鍵盤也要能觸發（<button> 本來就會）
+function onPreviewKeydown(event: KeyboardEvent) {
+  if ((event.key !== 'Enter' && event.key !== ' ') || (event.target as Element).tagName !== 'CODE') return
+  if (!copyTarget(event)) return
+  event.preventDefault()
+  ;(event.target as HTMLElement).click()
+}
 
 // 原始碼只在切過去時才上色
 watch(view, (value) => {
@@ -121,7 +146,9 @@ watch(view, (value) => {
     <div
       v-if="isMarkdown && view === 'preview' && rendered"
       class="markdown-body prose prose-zinc max-w-none rounded-lg border border-default p-4 sm:p-6 dark:prose-invert"
-      v-html="rendered"
+      @click="onPreviewClick"
+      @keydown="onPreviewKeydown"
+      v-html="rendered.html"
     />
     <!-- eslint-enable vue/no-v-html -->
     <pre

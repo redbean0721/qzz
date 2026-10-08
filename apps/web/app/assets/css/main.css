@@ -45,3 +45,58 @@
   overflow-y: hidden;
   padding: 0.25rem 0;
 }
+/* 程式碼的複製（utils/markdown.ts 的 addCopyTargets）：區塊右上角的按鈕滑過才出現（觸控裝置一直顯示），行內程式碼點了就複製 */
+.markdown-body .code-block {
+  position: relative;
+}
+/* 長的程式碼行不要跑到按鈕底下 */
+.markdown-body .code-block pre {
+  padding-right: 3rem;
+}
+.markdown-body .copy-button {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: inline-flex;
+  padding: 0.375rem;
+  border: 1px solid var(--ui-border);
+  border-radius: 0.375rem;
+  background: var(--ui-bg);
+  color: var(--ui-text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.markdown-body .code-block:hover .copy-button,
+.markdown-body .copy-button:focus-visible,
+.markdown-body .copy-button.copied {
+  opacity: 1;
+}
+@media (hover: none) {
+  .markdown-body .copy-button {
+    opacity: 1;
+  }
+}
+.markdown-body .copy-button:hover {
+  color: var(--ui-text);
+}
+.markdown-body .copy-button svg {
+  width: 1rem;
+  height: 1rem;
+}
+.markdown-body .copy-button .icon-check,
+.markdown-body .copy-button.copied .icon-copy {
+  display: none;
+}
+.markdown-body .copy-button.copied .icon-check {
+  display: block;
+  color: var(--ui-success);
+}
+.markdown-body code.copyable {
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+.markdown-body code.copyable:hover,
+.markdown-body code.copyable.copied {
+  background: var(--ui-bg-accented);
+}
