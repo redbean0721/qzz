@@ -16,6 +16,11 @@ on:
       - .github/workflows/extension.yml
   workflow_dispatch:
   workflow_call:
+    inputs:
+      bundle:
+        description: Also upload the three zips as one regular artifact (extension-release.yml downloads that)
+        type: boolean
+        default: false
     outputs:
       version:
         description: apps/extension/package.json version
@@ -85,6 +90,16 @@ jobs:
           archive: false
           if-no-files-found: error
           retention-days: 30
+
+      # 上面三個是 zip 原檔，download-artifact 會把 zip 當成 artifact 的壓縮包自動解開（變成擴充功能的內容）；
+      # 給 extension-release.yml 用的另外包成一般 artifact，解開剛好是這三個 zip
+      - if: inputs.bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: extension-zips
+          path: apps/extension/.output/qzz-${{ steps.meta.outputs.version }}-*.zip
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Summary
         env:

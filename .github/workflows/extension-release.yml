@@ -24,6 +24,8 @@ concurrency:
 jobs:
   build:
     uses: ./.github/workflows/extension.yml
+    with:
+      bundle: true
 
   release:
     needs: build
@@ -44,8 +46,7 @@ jobs:
 
       - uses: actions/download-artifact@v8
         with:
-          pattern: qzz-${{ needs.build.outputs.version }}-*.zip
-          merge-multiple: true
+          name: extension-zips
           path: zips
 
       # 在 GitHub 網頁上先建好 release 再推 tag 也可以：已存在就只補上 zip
@@ -85,8 +86,7 @@ jobs:
 
       - uses: actions/download-artifact@v8
         with:
-          pattern: qzz-${{ needs.build.outputs.version }}-chrome.zip
-          merge-multiple: true
+          name: extension-zips
           path: zips
 
       - name: Submit to the Chrome Web Store
@@ -126,8 +126,7 @@ jobs:
 
       - uses: actions/download-artifact@v8
         with:
-          pattern: qzz-${{ needs.build.outputs.version }}-*.zip
-          merge-multiple: true
+          name: extension-zips
           path: zips
 
       # listed 頻道 + 原始碼 zip（審核人員用它重 build，步驟在 apps/extension/README.md）
