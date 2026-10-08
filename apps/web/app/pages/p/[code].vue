@@ -35,15 +35,43 @@ const copy = useCopy()
 
 // 伺服器端先輸出純文字；瀏覽器載入後才下載 Shiki 上色（不佔 Worker 的大小和 CPU）
 const highlighted = ref<string | null>(null)
-onMounted(async () => {
+let highlighting = false
+async function highlightSource() {
   const current = paste.value
-  if (!current || !canHighlight(current.language, current.content)) return
+  if (highlighting || !current || !canHighlight(current.language, current.content)) return
+  highlighting = true
   try {
     highlighted.value = await highlight(current.content, current.language)
   } catch (err) {
     // 上色失敗就維持純文字
     console.warn('syntax highlighting failed', err)
   }
+}
+
+// Markdown 貼文像 GitHub 一樣預設顯示預覽，可以切換成原始碼；預覽產生前（或失敗時）先顯示原始碼
+const isMarkdown = computed(() => paste.value?.language === 'markdown')
+const view = ref<'preview' | 'source'>('preview')
+const viewTabs = [
+  { label: '預覽', value: 'preview', icon: 'i-lucide-eye' },
+  { label: '原始碼', value: 'source', icon: 'i-lucide-code' },
+]
+const rendered = ref<string | null>(null)
+
+onMounted(async () => {
+  const current = paste.value
+  if (!current) return
+  if (!isMarkdown.value) return highlightSource()
+  try {
+    rendered.value = await renderMarkdown(current.content)
+  } catch (err) {
+    console.warn('markdown rendering failed', err)
+    view.value = 'source'
+  }
+})
+
+// 原始碼只在切過去時才上色
+watch(view, (value) => {
+  if (value === 'source') highlightSource()
 })
 </script>
 
@@ -79,7 +107,25 @@ onMounted(async () => {
       </div>
     </div>
 
+    <UTabs
+      v-if="isMarkdown"
+      v-model="view"
+      :items="viewTabs"
+      :content="false"
+      variant="link"
+      size="sm"
+      class="mb-3 w-fit"
+    />
+
+    <!-- eslint-disable vue/no-v-html -- markdown-it 設定 html: false 並限制連結（utils/markdown.ts） -->
+    <div
+      v-if="isMarkdown && view === 'preview' && rendered"
+      class="markdown-body prose prose-zinc max-w-none rounded-lg border border-default p-4 sm:p-6 dark:prose-invert"
+      v-html="rendered"
+    />
+    <!-- eslint-enable vue/no-v-html -->
     <pre
+      v-else
       class="overflow-x-auto rounded-lg border border-default bg-elevated p-4 font-mono text-sm leading-relaxed"
     ><code v-if="highlighted" class="shiki-code" v-html="highlighted" /><template v-else>{{ paste.content }}</template></pre><!-- eslint-disable-line vue/no-v-html -- Shiki 輸出時已跳脫貼文內容 -->
   </div>

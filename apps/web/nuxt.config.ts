@@ -6,9 +6,9 @@ import { createNoticeCollector } from '../../tools/third-party-notices'
 const notices = createNoticeCollector({
   title: 'qzz.tw – third-party notices',
   note: 'Covers the JavaScript and CSS served to the browser (the client bundle).',
-  // 不在 JS 模組清單裡、但產物裡有它們的東西：Tailwind 產生的 CSS（透過 Nuxt UI），
+  // 不在 JS 模組清單裡、但產物裡有它們的東西：Tailwind 產生的 CSS（透過 Nuxt UI，Markdown 預覽用 typography 外掛），
   // 以及 Nuxt Icon 從 @iconify-json/lucide 讀出、以虛擬模組打包的圖示資料
-  alwaysInclude: ['tailwindcss', '@iconify-json/lucide'],
+  alwaysInclude: ['tailwindcss', '@tailwindcss/typography', '@iconify-json/lucide'],
 })
 
 export default defineNuxtConfig({

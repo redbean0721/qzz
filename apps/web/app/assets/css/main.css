@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
+@plugin "@tailwindcss/typography";
 
 /* 貼文的語法高亮（utils/highlight.ts）：Shiki 輸出兩套顏色變數，依深淺色模式套用 */
 .shiki-code span {
@@ -7,4 +8,34 @@
 }
 .dark .shiki-code span {
   color: var(--shiki-dark);
+}
+
+/* Markdown 貼文的預覽（utils/markdown.ts）：沿用 Nuxt UI 的顏色，程式碼區塊跟一般貼文一樣用 Shiki 的顏色 */
+.markdown-body {
+  --tw-prose-links: var(--ui-primary);
+  --tw-prose-invert-links: var(--ui-primary);
+}
+.markdown-body pre {
+  background: var(--ui-bg-elevated);
+  color: var(--ui-text);
+  border: 1px solid var(--ui-border);
+}
+.markdown-body :not(pre) > code {
+  background: var(--ui-bg-elevated);
+  border-radius: 0.25rem;
+  padding: 0.15em 0.35em;
+  font-weight: 400;
+}
+.markdown-body :not(pre) > code::before,
+.markdown-body :not(pre) > code::after {
+  content: none;
+}
+/* typography 會在引用前後自動加引號、把引用變斜體；GitHub 不會，照原文顯示 */
+.markdown-body blockquote {
+  font-style: normal;
+  color: var(--ui-text-muted);
+}
+.markdown-body blockquote p:first-of-type::before,
+.markdown-body blockquote p:last-of-type::after {
+  content: none;
 }
