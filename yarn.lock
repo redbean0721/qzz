@@ -3305,6 +3305,7 @@ __metadata:
     drizzle-orm: "npm:^0.45.3"
     fastify: "npm:^5.12.5"
     ioredis: "npm:^5.11.1"
+    markdown-it: "npm:^15.0.2"
     pg: "npm:^8.23.1"
     pino-pretty: "npm:^13.2.0"
     satori: "npm:0.33.5"

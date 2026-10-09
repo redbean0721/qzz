@@ -12,6 +12,7 @@ import { bearerToken } from '../lib/auth.js'
 import { CODE_PATTERN, insertWithUniqueCode } from '../lib/code.js'
 import { expiresAtFrom } from '../lib/expires.js'
 import { renderPasteImage } from '../lib/og-image.js'
+import { pasteDescription } from '../lib/paste-summary.js'
 import { perMinute, type RateLimitedRouteOptions } from '../lib/rate-limit.js'
 import { generateDeleteToken, hashDeleteToken, verifyDeleteToken } from '../lib/token.js'
 
@@ -106,6 +107,7 @@ export const pasteRoutes: FastifyPluginAsync<RateLimitedRouteOptions> = async (a
       code: paste.code,
       content: paste.content,
       language: paste.language,
+      description: pasteDescription(paste.content, paste.language),
       createdAt: paste.createdAt.toISOString(),
       expiresAt: paste.expiresAt?.toISOString() ?? null,
     }

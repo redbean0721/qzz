@@ -33,6 +33,8 @@ export const pasteViewSchema = z.object({
   code: z.string(),
   content: z.string(),
   language: z.string().nullable(),
+  // 開頭一段的純文字（Markdown 已拿掉格式符號），給 og:description 用
+  description: z.string(),
   createdAt: z.string(),
   expiresAt: z.string().nullable(),
 })

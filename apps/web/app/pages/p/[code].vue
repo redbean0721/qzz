@@ -29,10 +29,8 @@ if (error.value || !paste.value) {
   })
 }
 
-// Discord、Threads 等貼上網址時的預覽：標題、開頭的文字，和 API 畫的預覽圖
+// Discord、Threads 等貼上網址時的預覽：標題、開頭的文字（API 產生，Markdown 已拿掉格式符號），和 API 畫的預覽圖
 const { origin } = useRequestURL()
-const PREVIEW_CHARS = 160
-const flat = paste.value.content.replace(/\s+/g, ' ').trim()
 const lines = paste.value.content.replace(/\n+$/, '').split('\n').length
 const language = paste.value.language && paste.value.language !== 'text' ? paste.value.language : null
 useSeoMeta({
@@ -40,7 +38,7 @@ useSeoMeta({
   ogSiteName: 'qzz.tw',
   ogUrl: `${origin}/p/${code}`,
   ogTitle: [`貼文 ${code}`, language, `${lines} 行`].filter(Boolean).join(' · '),
-  ogDescription: flat.length > PREVIEW_CHARS ? `${flat.slice(0, PREVIEW_CHARS)}…` : flat,
+  ogDescription: paste.value.description,
   ogImage: `${origin}/v1/pastes/${code}/og.png`,
   ogImageWidth: 1200,
   ogImageHeight: 630,

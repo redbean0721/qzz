@@ -84,7 +84,26 @@ test('GET /v1/pastes/:code returns the paste as JSON', async () => {
   assert.equal(body.code, code)
   assert.equal(body.content, 'console.log(1)')
   assert.equal(body.language, 'js')
+  assert.equal(body.description, 'console.log(1)')
   assert.ok(!Number.isNaN(Date.parse(body.createdAt)))
+})
+
+test('GET /v1/pastes/:code describes markdown pastes without markup', async () => {
+  const content = '# 標題\n\n**粗體** 和 `code`，還有[連結](https://example.com)。\n\n- 項目\n'
+  const { code } = (await createPaste({ content, language: 'markdown' })).json<PasteResponse>()
+
+  const body = (await app.inject({ method: 'GET', url: `/v1/pastes/${code}` })).json<PasteView>()
+  assert.equal(body.description, '標題 粗體 和 code，還有連結。 項目')
+})
+
+test('GET /v1/pastes/:code/og.png also renders markdown pastes', async () => {
+  const content = '# 標題\n\n段落 **粗體** `code`\n\n```js\nconsole.log(1)\n```\n\n> 引言\n\n1. 一\n2. 二\n'
+  const { code } = (await createPaste({ content, language: 'markdown' })).json<PasteResponse>()
+
+  const res = await app.inject({ method: 'GET', url: `/v1/pastes/${code}/og.png` })
+  assert.equal(res.statusCode, 200)
+  assert.equal(res.headers['content-type'], 'image/png')
+  assert.equal(res.rawPayload.readUInt32BE(16), 1200)
 })
 
 test('GET /v1/pastes/:code/raw serves untrusted content as plain text', async () => {
