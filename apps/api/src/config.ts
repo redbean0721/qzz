@@ -40,10 +40,12 @@ export type RateLimits = {
   createLink: number
   createPaste: number
   delete: number
+  report: number
 }
 
 export const RATE_LIMITS: RateLimits = {
   createLink: intEnv('RATE_LIMIT_CREATE_LINK', 10),
   createPaste: intEnv('RATE_LIMIT_CREATE_PASTE', 5),
   delete: intEnv('RATE_LIMIT_DELETE', 20),
+  report: intEnv('RATE_LIMIT_REPORT', 5),
 }

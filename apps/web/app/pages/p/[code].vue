@@ -30,6 +30,7 @@ if (error.value || !paste.value) {
 }
 
 const rawUrl = `/v1/pastes/${code}/raw`
+const reportUrl = { path: '/report', query: { url: `${useRequestURL().origin}/p/${code}` } }
 const lineCount = computed(() => paste.value?.content.split('\n').length ?? 0)
 const copy = useCopy()
 
@@ -128,6 +129,10 @@ watch(view, (value) => {
           target="_blank"
           external
         />
+        <!-- 只放圖示：加上文字標頭會擠成兩行 -->
+        <UTooltip text="檢舉這則貼文">
+          <UButton color="neutral" variant="ghost" icon="i-lucide-flag" aria-label="檢舉這則貼文" :to="reportUrl" />
+        </UTooltip>
         <UButton icon="i-lucide-plus" label="新貼文" to="/" />
       </div>
     </div>

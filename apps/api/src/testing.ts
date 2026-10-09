@@ -18,6 +18,7 @@ export function buildTestApp(opts: AppOptions = {}) {
         createLink: HIGH_LIMIT,
         createPaste: HIGH_LIMIT,
         delete: HIGH_LIMIT,
+        report: HIGH_LIMIT,
         ...opts.rateLimit?.limits,
       },
     },

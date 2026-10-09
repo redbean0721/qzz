@@ -71,6 +71,21 @@ test('delete endpoints are limited even when the token is wrong', async () => {
   assert.equal((await del()).statusCode, 429)
 })
 
+test('reports are limited even when the target does not exist', async () => {
+  const app = await makeApp({ rateLimit: { limits: { report: 2 } } })
+  const post = () =>
+    app.inject({
+      method: 'POST',
+      url: '/v1/reports',
+      payload: { kind: 'link', code: 'abcdefg', reason: 'spam' },
+      remoteAddress: '10.0.0.8',
+    })
+
+  assert.equal((await post()).statusCode, 404)
+  assert.equal((await post()).statusCode, 404)
+  assert.equal((await post()).statusCode, 429)
+})
+
 test('read endpoints are not rate limited', async () => {
   const app = await makeApp({ rateLimit: { limits: { createLink: 1, createPaste: 1, delete: 1 } } })
   const { code } = (await postPaste(app, '10.0.0.4')).json<PasteResponse>()

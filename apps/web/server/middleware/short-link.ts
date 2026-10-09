@@ -4,7 +4,7 @@ const SHORT_LINK_PATH = /^\/([0-9A-Za-z]{6,16})$/
 
 // 網站自己的單層頁面，長得像短碼也不去問 API（省一次請求，也避免萬一抽到同名短碼時蓋掉頁面）。
 // 新增 6 個字元以上、只有英數字的單層頁面時要加進來
-const PAGES = new Set(['privacy'])
+const PAGES = new Set(['privacy', 'report'])
 
 export default defineEventHandler(async (event) => {
   if (event.method !== 'GET' && event.method !== 'HEAD') return

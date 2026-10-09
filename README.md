@@ -100,7 +100,7 @@ yarn workspace @qzz/extension build --mode development   # 連到 http://localho
 
 ## API
 
-所有路徑都在 `/v1` 底下；建立與刪除依 IP 限制頻率。
+所有路徑都在 `/v1` 底下；建立、刪除與檢舉依 IP 限制頻率。
 
 | 方法 | 路徑 | 說明 |
 |---|---|---|
@@ -111,6 +111,7 @@ yarn workspace @qzz/extension build --mode development   # 連到 http://localho
 | `GET` | `/v1/pastes/:code` | 取得貼文（JSON） |
 | `GET` | `/v1/pastes/:code/raw` | 純文字內容 |
 | `DELETE` | `/v1/pastes/:code` | 刪除，需要 `Authorization: Bearer <deleteToken>` |
+| `POST` | `/v1/reports` | 檢舉：`{ "kind": "link" \| "paste", "code": "…", "reason": "phishing" \| "malware" \| "spam" \| "illegal" \| "other", "details": "…" }`，成功回 204，找不到內容回 404 |
 
 `expiresIn` 省略時預設為 `1d`。建立成功時回傳的 `deleteToken` 只會出現這一次，伺服器只保存它的雜湊值。
 
@@ -126,9 +127,9 @@ API 每次部署都會在 `main` 多一個 `deploy:` commit，push 前記得先 
 
 - 會保存哪些資料、保存多久，見[隱私權政策](https://qzz.tw/privacy)
 - 建立短網址前用 Google Safe Browsing 檢查，已知的釣魚與惡意網站無法縮短
-- 建立與刪除依 IP 限制頻率
-- 違規內容由管理員下架（停止公開但保留紀錄）
-- 發現濫用的短網址或貼文，請到 [Issues](https://github.com/redbean0721/qzz/issues) 回報
+- 建立、刪除與檢舉依 IP 限制頻率
+- 發現濫用的短網址或貼文，請到 [qzz.tw/report](https://qzz.tw/report) 檢舉
+- 檢舉由管理員人工審核，違規內容會被下架（停止公開但保留紀錄），不會因為檢舉自動下架
 
 ## 授權
 

@@ -8,3 +8,11 @@ export function isUniqueViolation(err: unknown, constraint?: string): boolean {
   }
   return false
 }
+
+// 例如要參照的資料剛好被刪掉
+export function isForeignKeyViolation(err: unknown): boolean {
+  for (let e = err; e instanceof Error; e = e.cause) {
+    if ((e as Error & { code?: string }).code === '23503') return true
+  }
+  return false
+}

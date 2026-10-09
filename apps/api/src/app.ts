@@ -14,6 +14,7 @@ import { startCleanupScheduler } from './jobs/cleanup.js'
 import { createSafeBrowsingChecker, type UrlChecker } from './lib/safe-browsing.js'
 import { linkRoutes } from './routes/links.js'
 import { pasteRoutes } from './routes/pastes.js'
+import { reportRoutes } from './routes/reports.js'
 
 export type AppOptions = {
   fastify?: FastifyServerOptions
@@ -88,6 +89,7 @@ export async function buildApp(opts: AppOptions = {}) {
 
   await app.register(linkRoutes, { rateLimits, urlChecker })
   await app.register(pasteRoutes, { rateLimits })
+  await app.register(reportRoutes, { rateLimits })
 
   return app
 }

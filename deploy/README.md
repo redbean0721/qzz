@@ -98,7 +98,15 @@ The `qzz` Namespace has `Prune=false` so the hand-made secrets are never deleted
 
 Rollback: revert the `deploy:` commit (or edit the tag back) and push; ArgoCD syncs the older image.
 
-## Takedown
+## Reports and takedown
+
+Users report content at https://qzz.tw/report (also linked from the footer and every paste page). Nothing is taken
+down automatically; each new report is logged at `warn` (`content reported`). Review open reports with:
+
+```sh
+kubectl -n qzz exec deploy/qzz-api -- node dist/admin.js reports          # open reports, most reported first
+kubectl -n qzz exec deploy/qzz-api -- node dist/admin.js reports --all    # including resolved ones
+```
 
 Disabled links / pastes return 404 everywhere immediately (the row is kept for the record):
 
@@ -107,9 +115,12 @@ kubectl -n qzz exec deploy/qzz-api -- node dist/admin.js show    https://qzz.tw/
 kubectl -n qzz exec deploy/qzz-api -- node dist/admin.js disable https://qzz.tw/abc1234
 kubectl -n qzz exec deploy/qzz-api -- node dist/admin.js disable https://qzz.tw/p/abc1234
 kubectl -n qzz exec deploy/qzz-api -- node dist/admin.js enable  link abc1234
+kubectl -n qzz exec deploy/qzz-api -- node dist/admin.js resolve paste abc1234   # report rejected, keep it online
 ```
 
-`show` prints the target URL (or a paste preview), creator IP and timestamps.
+`show` prints the target URL (or a paste preview), creator IP, timestamps and its reports (reason, details,
+reporter IP). `disable` also marks the target's open reports resolved. Reports are deleted together with their
+content (expiry or the creator's delete token); a takedown keeps them.
 
 ## Checks
 
