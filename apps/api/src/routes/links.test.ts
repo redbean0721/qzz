@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
 import { eq, inArray } from 'drizzle-orm'
-import type { LinkResponse } from '@qzz/shared'
+import type { LinkResponse, LinkView } from '@qzz/shared'
 import { buildTestApp } from '../testing.js'
 import { db, schema } from '../db/index.js'
 import { generateCode } from '../lib/code.js'
@@ -100,9 +100,26 @@ test('GET /v1/links/:code returns 404 for unknown, expired and disabled links', 
   ])
 
   for (const code of [generateCode(), expired, disabled, 'bad-code!']) {
-    const res = await app.inject({ method: 'GET', url: `/v1/links/${code}` })
-    assert.equal(res.statusCode, 404, code)
+    for (const url of [`/v1/links/${code}`, `/v1/links/${code}/info`]) {
+      const res = await app.inject({ method: 'GET', url })
+      assert.equal(res.statusCode, 404, url)
+    }
   }
+})
+
+test('GET /v1/links/:code/info returns the target without redirecting', async () => {
+  const created = (await createLink({ url: 'https://example.com/target?a=1', expiresIn: 'never' })).json<LinkResponse>()
+
+  const res = await app.inject({ method: 'GET', url: `/v1/links/${created.code}/info` })
+  assert.equal(res.statusCode, 200)
+  assert.equal(res.headers['cache-control'], 'no-store')
+
+  const body = res.json<LinkView>()
+  assert.deepEqual(Object.keys(body).sort(), ['code', 'createdAt', 'expiresAt', 'url'])
+  assert.equal(body.code, created.code)
+  assert.equal(body.url, 'https://example.com/target?a=1')
+  assert.equal(body.expiresAt, null)
+  assert.ok(Math.abs(Date.parse(body.createdAt) - Date.now()) < 60_000)
 })
 
 test('DELETE /v1/links/:code requires the right token', async () => {

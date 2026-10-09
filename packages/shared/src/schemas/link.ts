@@ -21,3 +21,13 @@ export const linkResponseSchema = z.object({
 })
 
 export type LinkResponse = z.infer<typeof linkResponseSchema>
+
+// qzz.tw/<code>+ 預覽頁用：不轉址，只回傳目的地
+export const linkViewSchema = z.object({
+  code: z.string(),
+  url: z.string(),
+  createdAt: z.string(),
+  expiresAt: z.string().nullable(),
+})
+
+export type LinkView = z.infer<typeof linkViewSchema>

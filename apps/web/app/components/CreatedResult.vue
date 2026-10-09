@@ -4,6 +4,8 @@ defineProps<{
   deleteToken: string
   expiresAt: string | null
   rawUrl?: string
+  // 短網址的預覽頁（<短網址>+）
+  previewUrl?: string
 }>()
 
 const copy = useCopy()
@@ -23,6 +25,10 @@ const copy = useCopy()
       <template v-if="rawUrl">
         ·
         <a :href="rawUrl" target="_blank" rel="noopener" class="underline">raw</a>
+      </template>
+      <template v-if="previewUrl">
+        ·
+        <a :href="previewUrl" target="_blank" rel="noopener" class="underline" title="在短網址後面加上 + 就能預覽目的地">預覽</a>
       </template>
     </p>
 

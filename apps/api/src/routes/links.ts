@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify'
-import { createLinkSchema, type LinkResponse } from '@qzz/shared'
+import { createLinkSchema, type LinkResponse, type LinkView } from '@qzz/shared'
 import { and, eq, gt, isNull, or, sql } from 'drizzle-orm'
 import { PUBLIC_BASE_URL } from '../config.js'
 import { db, schema } from '../db/index.js'
@@ -15,6 +15,24 @@ const { links } = schema
 type CodeParams = { code: string }
 
 type LinkRouteOptions = RateLimitedRouteOptions & { urlChecker?: UrlChecker }
+
+async function findActiveLink(code: string) {
+  if (!CODE_PATTERN.test(code)) return undefined
+
+  const [link] = await db
+    .select({ code: links.code, url: links.url, createdAt: links.createdAt, expiresAt: links.expiresAt })
+    .from(links)
+    .where(
+      and(
+        eq(links.code, code),
+        eq(links.disabled, false),
+        or(isNull(links.expiresAt), gt(links.expiresAt, sql`now()`)),
+      ),
+    )
+    .limit(1)
+
+  return link
+}
 
 export const linkRoutes: FastifyPluginAsync<LinkRouteOptions> = async (app, { rateLimits, urlChecker }) => {
   const createOpts = { config: perMinute(rateLimits.createLink) }
@@ -72,22 +90,7 @@ export const linkRoutes: FastifyPluginAsync<LinkRouteOptions> = async (app, { ra
 
   // qzz.tw/<code> 由前端的 Cloudflare Worker 轉呼叫這條，再把 302 原樣回給使用者
   app.get<{ Params: CodeParams }>('/v1/links/:code', async (request, reply) => {
-    const { code } = request.params
-    if (!CODE_PATTERN.test(code)) {
-      return reply.code(404).send({ error: 'not found' })
-    }
-
-    const [link] = await db
-      .select({ url: links.url })
-      .from(links)
-      .where(
-        and(
-          eq(links.code, code),
-          eq(links.disabled, false),
-          or(isNull(links.expiresAt), gt(links.expiresAt, sql`now()`)),
-        ),
-      )
-      .limit(1)
+    const link = await findActiveLink(request.params.code)
 
     if (!link) {
       return reply.code(404).send({ error: 'not found' })
@@ -95,6 +98,23 @@ export const linkRoutes: FastifyPluginAsync<LinkRouteOptions> = async (app, { ra
 
     // 302 而非 301：瀏覽器不會永久快取，下架後才會生效
     return reply.header('cache-control', 'no-store').redirect(link.url, 302)
+  })
+
+  // qzz.tw/<code>+ 預覽頁：只回傳目的地，不轉址
+  app.get<{ Params: CodeParams }>('/v1/links/:code/info', async (request, reply) => {
+    const link = await findActiveLink(request.params.code)
+
+    if (!link) {
+      return reply.code(404).send({ error: 'not found' })
+    }
+
+    const body: LinkView = {
+      code: link.code,
+      url: link.url,
+      createdAt: link.createdAt.toISOString(),
+      expiresAt: link.expiresAt?.toISOString() ?? null,
+    }
+    return reply.header('cache-control', 'no-store').send(body)
   })
 
   app.delete<{ Params: CodeParams }>('/v1/links/:code', deleteOpts, async (request, reply) => {

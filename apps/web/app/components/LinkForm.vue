@@ -49,5 +49,6 @@ async function onSubmit() {
     :url="result.shortUrl"
     :delete-token="result.deleteToken"
     :expires-at="result.expiresAt"
+    :preview-url="`${result.shortUrl}+`"
   />
 </template>
