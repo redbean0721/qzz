@@ -29,6 +29,8 @@ RUN mkdir -p /out/apps/api /out/packages/shared \
  && cp -a packages/shared/package.json packages/shared/dist /out/packages/shared/ \
  && if [ -d apps/api/node_modules ]; then cp -a apps/api/node_modules /out/apps/api/; fi \
  && if [ -d packages/shared/node_modules ]; then cp -a packages/shared/node_modules /out/packages/shared/; fi
+# 貼文預覽圖（src/lib/og-image.ts）只用 400 字重的 woff；其他字重和 woff2 不放進 image（noto-sans-tc 整包 68 MB）
+RUN find /out -path '*/@fontsource/*/files/*' -type f ! -name '*-400-normal.woff' -delete
 # 原生模組會是 build 機器平台的版本，跨平台 image 會壞掉：有的話直接讓 build 失敗
 RUN if find /out -name '*.node' | grep .; then \
       echo 'native modules found: cross-platform build is unsafe' >&2; exit 1; \

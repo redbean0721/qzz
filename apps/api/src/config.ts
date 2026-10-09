@@ -41,6 +41,7 @@ export type RateLimits = {
   createPaste: number
   delete: number
   report: number
+  ogImage: number
 }
 
 export const RATE_LIMITS: RateLimits = {
@@ -48,4 +49,6 @@ export const RATE_LIMITS: RateLimits = {
   createPaste: intEnv('RATE_LIMIT_CREATE_PASTE', 5),
   delete: intEnv('RATE_LIMIT_DELETE', 20),
   report: intEnv('RATE_LIMIT_REPORT', 5),
+  // 貼文預覽圖：Discord 等服務的爬蟲共用少數 IP，所以給高一點；前面有 Cloudflare 快取
+  ogImage: intEnv('RATE_LIMIT_OG_IMAGE', 60),
 }

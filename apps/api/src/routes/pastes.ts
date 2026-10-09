@@ -11,6 +11,7 @@ import { db, schema } from '../db/index.js'
 import { bearerToken } from '../lib/auth.js'
 import { CODE_PATTERN, insertWithUniqueCode } from '../lib/code.js'
 import { expiresAtFrom } from '../lib/expires.js'
+import { renderPasteImage } from '../lib/og-image.js'
 import { perMinute, type RateLimitedRouteOptions } from '../lib/rate-limit.js'
 import { generateDeleteToken, hashDeleteToken, verifyDeleteToken } from '../lib/token.js'
 
@@ -18,6 +19,12 @@ const { pastes } = schema
 
 // JSON 跳脫最壞情況是每個 byte 變成 \u00XX（6 bytes），再留一點給其他欄位
 const PASTE_BODY_LIMIT = MAX_PASTE_BYTES * 6 + 64 * 1024
+
+// 預覽圖上顯示的網域
+const PUBLIC_HOST = new URL(PUBLIC_BASE_URL).host
+// Cloudflare 和這裡的記憶體都快取 10 分鐘：下架後最久 10 分鐘還拿得到舊圖（Discord 自己也會快取，那部分管不到）
+const OG_IMAGE_MAX_AGE = 600
+const OG_IMAGE_CACHE_SIZE = 50
 
 type CodeParams = { code: string }
 
@@ -48,6 +55,10 @@ async function findActivePaste(code: string) {
 export const pasteRoutes: FastifyPluginAsync<RateLimitedRouteOptions> = async (app, { rateLimits }) => {
   const createOpts = { bodyLimit: PASTE_BODY_LIMIT, config: perMinute(rateLimits.createPaste) }
   const deleteOpts = { config: perMinute(rateLimits.delete) }
+  const ogImageOpts = { config: perMinute(rateLimits.ogImage) }
+
+  // 最近畫過的圖（code → PNG 和產生時間）：加上 query string 繞過 Cloudflare 快取時也不用重畫
+  const ogImages = new Map<string, { png: Buffer; at: number }>()
 
   app.post('/v1/pastes', createOpts, async (request, reply) => {
     const result = createPasteSchema.safeParse(request.body)
@@ -116,6 +127,39 @@ export const pasteRoutes: FastifyPluginAsync<RateLimitedRouteOptions> = async (a
       .header('cache-control', 'no-store')
       .header('x-robots-tag', 'noindex, nofollow')
       .send(paste.content)
+  })
+
+  // og:image：Discord 等服務顯示的預覽圖，畫出貼文開頭幾行
+  app.get<{ Params: CodeParams }>('/v1/pastes/:code/og.png', ogImageOpts, async (request, reply) => {
+    // 每次都查資料庫，下架、刪除、過期後這裡立刻 404
+    const paste = await findActivePaste(request.params.code)
+
+    if (!paste) {
+      ogImages.delete(request.params.code)
+      return reply.code(404).header('cache-control', 'no-store').type('text/plain; charset=utf-8').send('not found\n')
+    }
+
+    let cached = ogImages.get(paste.code)
+    if (!cached || Date.now() - cached.at > OG_IMAGE_MAX_AGE * 1000) {
+      const png = await renderPasteImage({
+        code: paste.code,
+        host: PUBLIC_HOST,
+        content: paste.content,
+        language: paste.language,
+      })
+      cached = { png, at: Date.now() }
+      ogImages.delete(paste.code)
+      ogImages.set(paste.code, cached)
+      // Map 依加入順序，超過上限就丟掉最舊的
+      if (ogImages.size > OG_IMAGE_CACHE_SIZE) ogImages.delete(ogImages.keys().next().value!)
+    }
+
+    return reply
+      .type('image/png')
+      .header('cache-control', `public, max-age=${OG_IMAGE_MAX_AGE}`)
+      .header('x-content-type-options', 'nosniff')
+      .header('x-robots-tag', 'noindex')
+      .send(cached.png)
   })
 
   app.delete<{ Params: CodeParams }>('/v1/pastes/:code', deleteOpts, async (request, reply) => {

@@ -111,6 +111,7 @@ yarn workspace @qzz/extension build --mode development   # 連到 http://localho
 | `POST` | `/v1/pastes` | 建立貼文：`{ "content": "…", "language": "typescript", "expiresIn": "7d" }` |
 | `GET` | `/v1/pastes/:code` | 取得貼文（JSON） |
 | `GET` | `/v1/pastes/:code/raw` | 純文字內容 |
+| `GET` | `/v1/pastes/:code/og.png` | 預覽圖（1200×630，貼到 Discord 等服務時顯示的貼文開頭） |
 | `DELETE` | `/v1/pastes/:code` | 刪除，需要 `Authorization: Bearer <deleteToken>` |
 | `POST` | `/v1/reports` | 檢舉：`{ "kind": "link" \| "paste", "code": "…", "reason": "phishing" \| "malware" \| "spam" \| "illegal" \| "other", "details": "…" }`，成功回 204，找不到內容回 404 |
 

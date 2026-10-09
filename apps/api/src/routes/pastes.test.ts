@@ -110,7 +110,7 @@ test('GET returns 404 for unknown, expired and disabled pastes', async () => {
   ])
 
   for (const code of [generateCode(), expired, disabled, 'bad-code!']) {
-    for (const url of [`/v1/pastes/${code}`, `/v1/pastes/${code}/raw`]) {
+    for (const url of [`/v1/pastes/${code}`, `/v1/pastes/${code}/raw`, `/v1/pastes/${code}/og.png`]) {
       const res = await app.inject({ method: 'GET', url })
       assert.equal(res.statusCode, 404, url)
     }
@@ -133,4 +133,30 @@ test('DELETE /v1/pastes/:code requires the right token', async () => {
   assert.equal((await del(`Bearer ${deleteToken}`)).statusCode, 204)
   assert.equal((await app.inject({ method: 'GET', url: `/v1/pastes/${code}` })).statusCode, 404)
   assert.equal((await del(`Bearer ${deleteToken}`)).statusCode, 404)
+})
+
+test('GET /v1/pastes/:code/og.png renders a 1200x630 PNG', async () => {
+  const { code } = (await createPaste({ content: 'const 中文 = "✅"\n'.repeat(20), language: 'typescript' })).json<PasteResponse>()
+
+  const res = await app.inject({ method: 'GET', url: `/v1/pastes/${code}/og.png` })
+  assert.equal(res.statusCode, 200)
+  assert.equal(res.headers['content-type'], 'image/png')
+  assert.equal(res.headers['cache-control'], 'public, max-age=600')
+  assert.equal(res.headers['x-robots-tag'], 'noindex')
+
+  const png = res.rawPayload
+  assert.deepEqual([...png.subarray(0, 8)], [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+  // IHDR：寬、高
+  assert.equal(png.readUInt32BE(16), 1200)
+  assert.equal(png.readUInt32BE(20), 630)
+
+  // 第二次從記憶體快取拿，內容一樣
+  const again = await app.inject({ method: 'GET', url: `/v1/pastes/${code}/og.png` })
+  assert.ok(again.rawPayload.equals(png))
+
+  // 下架後立刻 404，快取不會再送出舊圖
+  await db.update(pastes).set({ disabled: true }).where(eq(pastes.code, code))
+  const gone = await app.inject({ method: 'GET', url: `/v1/pastes/${code}/og.png` })
+  assert.equal(gone.statusCode, 404)
+  assert.equal(gone.headers['cache-control'], 'no-store')
 })

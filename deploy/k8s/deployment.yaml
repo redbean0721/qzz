@@ -99,9 +99,10 @@ spec:
           resources:
             requests:
               cpu: 50m
-              memory: 128Mi
+              memory: 160Mi
+            # 貼文預覽圖第一次產生時會載入字型和 WebAssembly，常駐多約 100 MB
             limits:
-              memory: 256Mi
+              memory: 384Mi
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true

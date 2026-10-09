@@ -29,6 +29,26 @@ if (error.value || !paste.value) {
   })
 }
 
+// Discord、Threads 等貼上網址時的預覽：標題、開頭的文字，和 API 畫的預覽圖
+const { origin } = useRequestURL()
+const PREVIEW_CHARS = 160
+const flat = paste.value.content.replace(/\s+/g, ' ').trim()
+const lines = paste.value.content.replace(/\n+$/, '').split('\n').length
+const language = paste.value.language && paste.value.language !== 'text' ? paste.value.language : null
+useSeoMeta({
+  ogType: 'website',
+  ogSiteName: 'qzz.tw',
+  ogUrl: `${origin}/p/${code}`,
+  ogTitle: [`貼文 ${code}`, language, `${lines} 行`].filter(Boolean).join(' · '),
+  ogDescription: flat.length > PREVIEW_CHARS ? `${flat.slice(0, PREVIEW_CHARS)}…` : flat,
+  ogImage: `${origin}/v1/pastes/${code}/og.png`,
+  ogImageWidth: 1200,
+  ogImageHeight: 630,
+  ogImageType: 'image/png',
+  ogImageAlt: `貼文 ${code} 開頭幾行的預覽`,
+  twitterCard: 'summary_large_image',
+})
+
 const rawUrl = `/v1/pastes/${code}/raw`
 const reportUrl = { path: '/report', query: { url: `${useRequestURL().origin}/p/${code}` } }
 const lineCount = computed(() => paste.value?.content.split('\n').length ?? 0)
