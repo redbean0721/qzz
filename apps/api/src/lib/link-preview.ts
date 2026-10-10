@@ -12,6 +12,7 @@ import { INVISIBLE } from './paste-summary.js'
 // - 每次連線前解析 DNS，任何一個位址不是公開的網際網路位址就不連；連線用的就是檢查過的位址（擋 DNS rebinding）
 // - 網址直接寫 IP 時一樣檢查；只接受 http/https 的預設埠
 // - 轉址最多 3 次，每一次都重新檢查；整體 3 秒逾時；最多讀 1 MB，讀到 </head> 就停
+// 目的地本身是圖片或影片檔時只看回應標頭、不下載內容，預覽頁直接用 <img> / <video> 顯示（由瀏覽器載入）
 
 const TIMEOUT_MS = 3000
 const MAX_REDIRECTS = 3
@@ -70,7 +71,15 @@ function guardedLookup(allow: AddressCheck) {
   }
 }
 
-type Fetched = { url: URL; contentType: string; body: Buffer }
+type Fetched =
+  | { kind: 'html'; url: URL; contentType: string; body: Buffer }
+  | { kind: 'image'; url: URL; contentType: string }
+  | { kind: 'video'; url: URL; contentType: string }
+
+const HTML_TYPE = /^(?:text\/html|application\/xhtml\+xml)\b/i
+// <img> 能顯示的格式（SVG 放在 <img> 裡不會執行程式）；影片只收瀏覽器普遍能播的
+const IMAGE_TYPE = /^image\/(?:png|jpeg|gif|webp|avif|svg\+xml|bmp)\b/i
+const VIDEO_TYPE = /^video\/(?:mp4|webm|ogg)\b/i
 
 function decoded(res: http.IncomingMessage): Readable {
   switch ((res.headers['content-encoding'] ?? '').trim().toLowerCase()) {
@@ -154,11 +163,15 @@ export async function safeFetch(target: string, options: FetchOptions = {}): Pro
     }
 
     const contentType = String(res.headers['content-type'] ?? '')
-    if (res.statusCode !== 200 || !/^(text\/html|application\/xhtml\+xml)\b/i.test(contentType)) {
-      res.resume()
-      return null
+    if (res.statusCode === 200 && HTML_TYPE.test(contentType)) {
+      return { kind: 'html', url, contentType, body: await readHead(res) }
     }
-    return { url, contentType, body: await readHead(res) }
+    // 其他回應都不讀內容，直接關掉連線（大檔案不會一直下載到逾時）
+    res.destroy()
+    if (res.statusCode !== 200) return null
+    if (IMAGE_TYPE.test(contentType)) return { kind: 'image', url, contentType }
+    if (VIDEO_TYPE.test(contentType)) return { kind: 'video', url, contentType }
+    return null
   }
   return null
 }
@@ -239,19 +252,31 @@ export function parseHead(html: string, pageUrl: URL): LinkPreview {
     description: clean(meta['og:description'] ?? meta['twitter:description'] ?? meta.description, MAX_DESCRIPTION),
     siteName: clean(meta['og:site_name'], MAX_TITLE),
     image,
+    video: null,
     youtube: null,
   }
 }
 
-export const EMPTY_PREVIEW: LinkPreview = { title: null, description: null, siteName: null, image: null, youtube: null }
+export const EMPTY_PREVIEW: LinkPreview = {
+  title: null,
+  description: null,
+  siteName: null,
+  image: null,
+  video: null,
+  youtube: null,
+}
 
 export type PreviewFetcher = (url: string) => Promise<LinkPreview>
 
-// 不是 HTML、狀態碼不是 200 時回空的預覽（頁面就不顯示卡片）；連線失敗、逾時、被擋會丟錯誤
+// 圖片 / 影片檔回只有 image / video 的預覽；其他非 HTML、狀態碼不是 200 時回空的預覽（頁面就不顯示卡片）；
+// 連線失敗、逾時、被擋會丟錯誤
 export function createPreviewFetcher(options: FetchOptions = {}): PreviewFetcher {
   return async (url) => {
     const fetched = await safeFetch(url, options)
     if (!fetched) return EMPTY_PREVIEW
+    // 用短網址原本的目的地網址：瀏覽器自己會跟著轉址走（轉址後的網址可能是有時效的簽章網址）
+    if (fetched.kind === 'image') return { ...EMPTY_PREVIEW, image: url }
+    if (fetched.kind === 'video') return { ...EMPTY_PREVIEW, video: url }
     return parseHead(decodeBody(fetched.contentType, fetched.body), fetched.url)
   }
 }

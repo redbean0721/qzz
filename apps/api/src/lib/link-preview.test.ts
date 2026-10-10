@@ -4,7 +4,14 @@ import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { after, before, test } from 'node:test'
 import { gzipSync } from 'node:zlib'
-import { BlockedAddressError, createPreviewFetcher, isPublicAddress, parseHead, safeFetch } from './link-preview.js'
+import {
+  BlockedAddressError,
+  EMPTY_PREVIEW,
+  createPreviewFetcher,
+  isPublicAddress,
+  parseHead,
+  safeFetch,
+} from './link-preview.js'
 
 test('isPublicAddress only allows public unicast addresses', () => {
   for (const address of ['8.8.8.8', '1.1.1.1', '140.112.8.116', '2001:4860:4860::8888', '2606:4700::1111']) {
@@ -59,7 +66,7 @@ test('parseHead reads Open Graph tags from real pages', () => {
 
   // 沒有 og 標籤：只有 <title>
   const example = parseHead(fixture('example-com'), new URL('https://example.com/'))
-  assert.deepEqual(example, { title: 'Example Domain', description: null, siteName: null, image: null, youtube: null })
+  assert.deepEqual(example, { ...EMPTY_PREVIEW, title: 'Example Domain' })
 })
 
 test('parseHead resolves relative images and ignores unsafe ones', () => {
@@ -106,6 +113,14 @@ before(async () => {
     } else if (path === '/late-head') {
       res.writeHead(200, { 'content-type': 'text/html' })
       res.end(`<head><script>${'x'.repeat(800 * 1024)}</script><meta property="og:title" content="Late"></head>`)
+    } else if (path === '/cat.png' || path === '/clip.mp4' || path === '/clip.mov') {
+      // 圖片 / 影片檔：一直送資料，確認只看標頭、不會讀到逾時
+      const type = { '/cat.png': 'image/png', '/clip.mp4': 'video/mp4', '/clip.mov': 'video/quicktime' }[path]
+      res.writeHead(200, { 'content-type': type })
+      const timer = setInterval(() => res.write(Buffer.alloc(64 * 1024)), 5)
+      res.on('close', () => clearInterval(timer))
+    } else if (path === '/to-image') {
+      res.writeHead(302, { location: '/cat.png' }).end()
     } else if (path === '/json') {
       res.writeHead(200, { 'content-type': 'application/json' }).end('{}')
     } else if (path === '/hang') {
@@ -130,8 +145,20 @@ test('the preview fetcher follows redirects, decompresses and decodes', async ()
   assert.equal((await fetchPreview(`${base}/big5`)).title, '中文')
   assert.equal((await fetchPreview(`${base}/late-head`)).title, 'Late')
   // 非 HTML、404 → 空的預覽
-  assert.equal((await fetchPreview(`${base}/json`)).title, null)
-  assert.equal((await fetchPreview(`${base}/missing`)).title, null)
+  assert.deepEqual(await fetchPreview(`${base}/json`), EMPTY_PREVIEW)
+  assert.deepEqual(await fetchPreview(`${base}/missing`), EMPTY_PREVIEW)
+})
+
+test('image and video files are previewed by their own URL without downloading them', async () => {
+  const fetchPreview = createPreviewFetcher(allowLocal)
+  const started = Date.now()
+  assert.deepEqual(await fetchPreview(`${base}/cat.png`), { ...EMPTY_PREVIEW, image: `${base}/cat.png` })
+  assert.deepEqual(await fetchPreview(`${base}/clip.mp4`), { ...EMPTY_PREVIEW, video: `${base}/clip.mp4` })
+  // 轉址到圖片：用短網址原本的網址（瀏覽器自己會跟著轉）
+  assert.deepEqual(await fetchPreview(`${base}/to-image`), { ...EMPTY_PREVIEW, image: `${base}/to-image` })
+  // 瀏覽器不一定能播的格式不顯示
+  assert.deepEqual(await fetchPreview(`${base}/clip.mov`), EMPTY_PREVIEW)
+  assert.ok(Date.now() - started < 1000)
 })
 
 test('safeFetch stops after three redirects and re-checks every hop', async () => {
@@ -142,7 +169,8 @@ test('safeFetch stops after three redirects and re-checks every hop', async () =
 test('safeFetch stops reading at </head> and gives up on slow servers', async () => {
   const started = Date.now()
   const endless = await safeFetch(`${base}/endless`, allowLocal)
-  assert.match(endless?.body.toString() ?? '', /Endless/)
+  assert.equal(endless?.kind, 'html')
+  assert.match(endless.body.toString(), /Endless/)
   assert.ok(Date.now() - started < 2000)
 
   await assert.rejects(safeFetch(`${base}/hang`, { ...allowLocal, timeoutMs: 200 }), { name: 'AbortError' })

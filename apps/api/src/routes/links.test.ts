@@ -19,6 +19,7 @@ const PREVIEW: LinkPreview = {
   description: 'About the target',
   siteName: 'Example',
   image: 'https://example.com/og.png',
+  video: null,
   youtube: null,
 }
 
@@ -178,7 +179,7 @@ test('GET /v1/links/:code/preview returns the target page preview and caches it'
   const broken = (await createLink({ url: `https://example.com/broken-${generateCode()}` })).json<LinkResponse>()
   for (let i = 0; i < 2; i++) {
     const res = await previewApp.inject({ method: 'GET', url: `/v1/links/${broken.code}/preview` })
-    assert.deepEqual(res.json<LinkPreview>(), { title: null, description: null, siteName: null, image: null, youtube: null })
+    assert.deepEqual(res.json<LinkPreview>(), { title: null, description: null, siteName: null, image: null, video: null, youtube: null })
   }
   assert.equal(previewCalls.length, 2)
 

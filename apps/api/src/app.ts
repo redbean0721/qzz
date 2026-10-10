@@ -92,11 +92,11 @@ export async function buildApp(opts: AppOptions = {}) {
     app.log.warn('SAFE_BROWSING_API_KEY is not set: short link targets are not checked')
   }
 
-  // 快取的是 LinkPreview 整包 JSON：欄位有增減時把 v2 往上加，舊格式的快取就不會再被讀到（放著等它過期）
+  // 快取的是 LinkPreview 整包 JSON：欄位有增減時把版本往上加，舊格式的快取就不會再被讀到（放著等它過期）
   const linkPreview = createPreviewCache(
     opts.linkPreview?.fetch ?? withYouTubeEmbed(createPreviewFetcher()),
     redis,
-    opts.linkPreview?.cachePrefix ?? 'qzz:preview:v2:',
+    opts.linkPreview?.cachePrefix ?? 'qzz:preview:v3:',
   )
 
   await app.register(linkRoutes, { rateLimits, urlChecker, linkPreview })

@@ -17,6 +17,9 @@ useSeoMeta({
   title: `短網址 ${code} 的預覽 – qzz`,
   robots: 'noindex, nofollow',
 })
+// 整頁不送 referrer：<video> 沒有 referrerpolicy 屬性，對方網站只能從這裡關掉。
+// YouTube 的 iframe 自己設了 strict-origin-when-cross-origin（它需要 referrer）
+useHead({ meta: [{ name: 'referrer', content: 'no-referrer' }] })
 
 const { data: link, error } = await useFetch<LinkView>(`/v1/links/${code}/info`, {
   // 跟貼文頁一樣：baseURL 兩邊不同，要給固定的 key
@@ -39,7 +42,8 @@ const reportUrl = { path: '/report', query: { url: `${origin}/${code}` } }
 const copy = useCopy()
 
 // 目的地網站自己提供的標題、描述、圖片（API 讀它的 og 標籤）。在瀏覽器端才載入，慢的網站不會拖住整頁；
-// 什麼都沒有就不顯示。圖片由瀏覽器直接向該網站載入（不帶 referrer），載入失敗就藏起來
+// 什麼都沒有就不顯示。圖片由瀏覽器直接向該網站載入（不帶 referrer），載入失敗就藏起來。
+// 目的地本身是圖片 / 影片檔時只有 image / video：圖片照原尺寸整張顯示（不裁切、不放大），影片用瀏覽器內建的播放器
 const { data: preview, pending: previewPending } = useFetch<LinkPreview>(`/v1/links/${code}/preview`, {
   key: `link-preview:${code}`,
   server: false,
@@ -48,8 +52,11 @@ const { data: preview, pending: previewPending } = useFetch<LinkPreview>(`/v1/li
 // YouTube 影片而且允許嵌入時（API 問過 oEmbed），直接嵌入播放器取代預覽圖
 const youtube = computed(() => preview.value?.youtube ?? null)
 const hasText = computed(() => !!(preview.value?.title || preview.value?.description))
-const hasPreview = computed(() => hasText.value || !!preview.value?.image || !!youtube.value)
+const hasPreview = computed(
+  () => hasText.value || !!preview.value?.image || !!preview.value?.video || !!youtube.value,
+)
 const imageFailed = ref(false)
+const videoFailed = ref(false)
 </script>
 
 <template>
@@ -85,13 +92,24 @@ const imageFailed = ref(false)
             </p>
           </div>
           <YouTubeEmbed v-if="youtube" :id="youtube.id" :start="youtube.start" :title="preview.title" />
+          <!-- 影片只先讀長度等資訊，按播放才下載內容 -->
+          <video
+            v-else-if="preview.video && !videoFailed"
+            :src="preview.video"
+            controls
+            preload="metadata"
+            playsinline
+            class="block max-h-[70vh] w-full bg-black"
+            @error="videoFailed = true"
+          />
           <img
             v-else-if="preview.image && !imageFailed"
             :src="preview.image"
             alt=""
             referrerpolicy="no-referrer"
             loading="lazy"
-            class="max-h-80 w-full bg-elevated object-cover"
+            class="block bg-elevated"
+            :class="hasText ? 'max-h-80 w-full object-cover' : 'mx-auto max-h-[70vh] max-w-full'"
             @error="imageFailed = true"
           >
         </div>

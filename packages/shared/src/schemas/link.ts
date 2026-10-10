@@ -38,6 +38,8 @@ export const linkPreviewSchema = z.object({
   description: z.string().nullable(),
   siteName: z.string().nullable(),
   image: z.string().nullable(),
+  // 目的地本身是影片檔（mp4 / webm / ogg）時是它的網址；目的地是圖片檔時放在 image
+  video: z.string().nullable(),
   // 目的地是 YouTube 影片、而且 YouTube 允許嵌入時才有：預覽頁直接嵌入播放器（取代 image）。start 是秒數
   youtube: z.object({ id: z.string(), start: z.number().int().nonnegative() }).nullable(),
 })

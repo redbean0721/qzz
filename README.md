@@ -6,8 +6,8 @@
 - **貼文**：`qzz.tw/p/<code>`，最大 512 KB，支援語法高亮與純文字（raw）網址
 - **免登入**：建立時會拿到一次性的刪除碼，可以隨時刪除自己建立的內容
 - **瀏覽器擴充功能**：一鍵縮短目前分頁、右鍵縮短連結、把選取的文字建立成貼文
-  - Firefox：[addons.mozilla.org/firefox/addon/qzz](https://addons.mozilla.org/firefox/addon/qzz/)（審核中）
-  - Chrome / Edge：[Chrome 線上應用程式商店](https://chromewebstore.google.com/detail/mjoadeofebgfmgoolhccpefhjicjgpac)（審核中）
+  - Firefox：[addons.mozilla.org/firefox/addon/qzz](https://addons.mozilla.org/firefox/addon/qzz/)
+  - Chrome / Edge：[Chrome 線上應用程式商店](https://chromewebstore.google.com/detail/mjoadeofebgfmgoolhccpefhjicjgpac)
 
 [隱私權政策](https://qzz.tw/privacy) · [開放原始碼授權](https://qzz.tw/third-party-notices.txt) · [回報問題](https://github.com/redbean0721/qzz/issues)
 
