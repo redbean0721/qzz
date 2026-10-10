@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { LinkView } from '@qzz/shared'
+import type { LinkPreview, LinkView } from '@qzz/shared'
 
 // qzz.tw/<code>+：不轉址，先顯示短網址會前往哪裡（跟 bit.ly 一樣在後面加 +）。
 // 路徑裡的 + 要跳脫，否則 vue-router 會當成「可重複的參數」。vue-router 比對的是編碼後的路徑，
@@ -37,6 +37,19 @@ if (error.value || !link.value) {
 const domain = computed(() => (link.value ? new URL(link.value.url).hostname : ''))
 const reportUrl = { path: '/report', query: { url: `${origin}/${code}` } }
 const copy = useCopy()
+
+// 目的地網站自己提供的標題、描述、圖片（API 讀它的 og 標籤）。在瀏覽器端才載入，慢的網站不會拖住整頁；
+// 什麼都沒有就不顯示。圖片由瀏覽器直接向該網站載入（不帶 referrer），載入失敗就藏起來
+const { data: preview, pending: previewPending } = useFetch<LinkPreview>(`/v1/links/${code}/preview`, {
+  key: `link-preview:${code}`,
+  server: false,
+  lazy: true,
+})
+// YouTube 影片而且允許嵌入時（API 問過 oEmbed），直接嵌入播放器取代預覽圖
+const youtube = computed(() => preview.value?.youtube ?? null)
+const hasText = computed(() => !!(preview.value?.title || preview.value?.description))
+const hasPreview = computed(() => hasText.value || !!preview.value?.image || !!youtube.value)
+const imageFailed = ref(false)
 </script>
 
 <template>
@@ -47,12 +60,43 @@ const copy = useCopy()
     <UCard variant="subtle" class="mt-6">
       <p class="text-sm text-muted">會前往</p>
       <p class="mt-1 text-xl font-semibold break-all">{{ domain }}</p>
-      <p class="mt-2 font-mono text-sm break-all">{{ link.url }}</p>
+      <a
+        :href="link.url"
+        rel="nofollow noreferrer"
+        class="mt-2 block font-mono text-sm break-all text-primary underline-offset-2 hover:underline"
+      >{{ link.url }}</a>
       <p class="mt-3 text-xs text-muted">
         建立於 <NuxtTime :datetime="link.createdAt" locale="zh-TW" date-style="medium" time-style="short" />
         · <ExpiryText :expires-at="link.expiresAt" />
       </p>
     </UCard>
+
+    <!-- 只在瀏覽器端抓：伺服器端不輸出，避免 hydration 對不上 -->
+    <ClientOnly>
+      <section v-if="previewPending || hasPreview" class="mt-4">
+        <p class="mb-2 text-xs text-muted">以下是該網站自己提供的資訊，可能是偽造的，請以上方的網域為準</p>
+        <USkeleton v-if="previewPending" class="h-28 w-full" />
+        <div v-else-if="preview" class="overflow-hidden rounded-lg border border-default border-l-4 border-l-primary">
+          <div v-if="hasText" class="p-4">
+            <p v-if="preview.siteName" class="text-xs text-muted">{{ preview.siteName }}</p>
+            <p v-if="preview.title" class="mt-1 line-clamp-2 font-semibold break-words">{{ preview.title }}</p>
+            <p v-if="preview.description" class="mt-1 line-clamp-3 text-sm break-words text-muted">
+              {{ preview.description }}
+            </p>
+          </div>
+          <YouTubeEmbed v-if="youtube" :id="youtube.id" :start="youtube.start" :title="preview.title" />
+          <img
+            v-else-if="preview.image && !imageFailed"
+            :src="preview.image"
+            alt=""
+            referrerpolicy="no-referrer"
+            loading="lazy"
+            class="max-h-80 w-full bg-elevated object-cover"
+            @error="imageFailed = true"
+          >
+        </div>
+      </section>
+    </ClientOnly>
 
     <div class="mt-4 flex flex-wrap items-center gap-2">
       <UButton

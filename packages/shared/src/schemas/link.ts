@@ -31,3 +31,15 @@ export const linkViewSchema = z.object({
 })
 
 export type LinkView = z.infer<typeof linkViewSchema>
+
+// 短網址預覽頁的網站卡片：目的地網頁自己提供的 og:title 等資訊，抓不到的欄位是 null
+export const linkPreviewSchema = z.object({
+  title: z.string().nullable(),
+  description: z.string().nullable(),
+  siteName: z.string().nullable(),
+  image: z.string().nullable(),
+  // 目的地是 YouTube 影片、而且 YouTube 允許嵌入時才有：預覽頁直接嵌入播放器（取代 image）。start 是秒數
+  youtube: z.object({ id: z.string(), start: z.number().int().nonnegative() }).nullable(),
+})
+
+export type LinkPreview = z.infer<typeof linkPreviewSchema>

@@ -107,6 +107,7 @@ yarn workspace @qzz/extension build --mode development   # 連到 http://localho
 | `POST` | `/v1/links` | 建立短網址：`{ "url": "https://…", "expiresIn": "1h" \| "1d" \| "7d" \| "30d" \| "never" }` |
 | `GET` | `/v1/links/:code` | 302 轉址到原始網址 |
 | `GET` | `/v1/links/:code/info` | 取得目的地（JSON，不轉址；`qzz.tw/<code>+` 預覽頁用） |
+| `GET` | `/v1/links/:code/preview` | 目的地網頁自己提供的標題、描述、預覽圖網址（伺服器讀取 og 標籤，快取 1 小時） |
 | `DELETE` | `/v1/links/:code` | 刪除，需要 `Authorization: Bearer <deleteToken>` |
 | `POST` | `/v1/pastes` | 建立貼文：`{ "content": "…", "language": "typescript", "expiresIn": "7d" }` |
 | `GET` | `/v1/pastes/:code` | 取得貼文（JSON） |

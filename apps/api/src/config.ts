@@ -42,6 +42,7 @@ export type RateLimits = {
   delete: number
   report: number
   ogImage: number
+  linkPreview: number
 }
 
 export const RATE_LIMITS: RateLimits = {
@@ -51,4 +52,6 @@ export const RATE_LIMITS: RateLimits = {
   report: intEnv('RATE_LIMIT_REPORT', 5),
   // 貼文預覽圖：Discord 等服務的爬蟲共用少數 IP，所以給高一點；前面有 Cloudflare 快取
   ogImage: intEnv('RATE_LIMIT_OG_IMAGE', 60),
+  // 短網址預覽頁的網站卡片（會讓伺服器對外連線）
+  linkPreview: intEnv('RATE_LIMIT_LINK_PREVIEW', 30),
 }

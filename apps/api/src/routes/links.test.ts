@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
 import { eq, inArray } from 'drizzle-orm'
-import type { LinkResponse, LinkView } from '@qzz/shared'
+import type { LinkPreview, LinkResponse, LinkView } from '@qzz/shared'
 import { buildTestApp } from '../testing.js'
 import { db, schema } from '../db/index.js'
 import { generateCode } from '../lib/code.js'
@@ -10,16 +10,37 @@ import { hashDeleteToken } from '../lib/token.js'
 const { links } = schema
 const created: string[] = []
 let app: Awaited<ReturnType<typeof buildTestApp>>
+let previewApp: Awaited<ReturnType<typeof buildTestApp>>
+
+// 預覽用假的抓取函式：記錄被抓的網址，網址裡有 broken 就當成連線失敗
+const previewCalls: string[] = []
+const PREVIEW: LinkPreview = {
+  title: 'Target',
+  description: 'About the target',
+  siteName: 'Example',
+  image: 'https://example.com/og.png',
+  youtube: null,
+}
 
 before(async () => {
   app = await buildTestApp()
+  previewApp = await buildTestApp({
+    linkPreview: {
+      fetch: async (url) => {
+        previewCalls.push(url)
+        if (url.includes('broken')) throw new Error('connect ECONNREFUSED')
+        return PREVIEW
+      },
+    },
+  })
 })
 
+// pool 是共用的，兩個 app 都用完才一起關
 after(async () => {
   if (created.length > 0) {
     await db.delete(links).where(inArray(links.code, created))
   }
-  await app.close()
+  await Promise.all([app.close(), previewApp.close()])
 })
 
 async function createLink(payload: object) {
@@ -138,4 +159,28 @@ test('DELETE /v1/links/:code requires the right token', async () => {
   assert.equal((await del(`Bearer ${deleteToken}`)).statusCode, 204)
   assert.equal((await app.inject({ method: 'GET', url: `/v1/links/${code}` })).statusCode, 404)
   assert.equal((await del(`Bearer ${deleteToken}`)).statusCode, 404)
+})
+
+test('GET /v1/links/:code/preview returns the target page preview and caches it', async () => {
+  const target = `https://example.com/preview-${generateCode()}`
+  const { code } = (await createLink({ url: target })).json<LinkResponse>()
+
+  for (let i = 0; i < 2; i++) {
+    const res = await previewApp.inject({ method: 'GET', url: `/v1/links/${code}/preview` })
+    assert.equal(res.statusCode, 200)
+    assert.equal(res.headers['cache-control'], 'no-store')
+    assert.deepEqual(res.json<LinkPreview>(), PREVIEW)
+  }
+  // 第二次從 Valkey 拿
+  assert.deepEqual(previewCalls, [target])
+
+  // 抓失敗：回空的預覽（也會快取，不會每次都重抓）
+  const broken = (await createLink({ url: `https://example.com/broken-${generateCode()}` })).json<LinkResponse>()
+  for (let i = 0; i < 2; i++) {
+    const res = await previewApp.inject({ method: 'GET', url: `/v1/links/${broken.code}/preview` })
+    assert.deepEqual(res.json<LinkPreview>(), { title: null, description: null, siteName: null, image: null, youtube: null })
+  }
+  assert.equal(previewCalls.length, 2)
+
+  assert.equal((await previewApp.inject({ method: 'GET', url: `/v1/links/${generateCode()}/preview` })).statusCode, 404)
 })

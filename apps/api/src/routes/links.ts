@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify'
-import { createLinkSchema, type LinkResponse, type LinkView } from '@qzz/shared'
+import { createLinkSchema, type LinkPreview, type LinkResponse, type LinkView } from '@qzz/shared'
 import { and, eq, gt, isNull, or, sql } from 'drizzle-orm'
 import { PUBLIC_BASE_URL } from '../config.js'
 import { db, schema } from '../db/index.js'
@@ -7,6 +7,7 @@ import { bearerToken } from '../lib/auth.js'
 import { CODE_PATTERN, insertWithUniqueCode } from '../lib/code.js'
 import { expiresAtFrom } from '../lib/expires.js'
 import { perMinute, type RateLimitedRouteOptions } from '../lib/rate-limit.js'
+import type { PreviewCache } from '../lib/preview-cache.js'
 import type { UrlChecker } from '../lib/safe-browsing.js'
 import { generateDeleteToken, hashDeleteToken, verifyDeleteToken } from '../lib/token.js'
 
@@ -14,7 +15,7 @@ const { links } = schema
 
 type CodeParams = { code: string }
 
-type LinkRouteOptions = RateLimitedRouteOptions & { urlChecker?: UrlChecker }
+type LinkRouteOptions = RateLimitedRouteOptions & { urlChecker?: UrlChecker; linkPreview: PreviewCache }
 
 async function findActiveLink(code: string) {
   if (!CODE_PATTERN.test(code)) return undefined
@@ -34,9 +35,10 @@ async function findActiveLink(code: string) {
   return link
 }
 
-export const linkRoutes: FastifyPluginAsync<LinkRouteOptions> = async (app, { rateLimits, urlChecker }) => {
+export const linkRoutes: FastifyPluginAsync<LinkRouteOptions> = async (app, { rateLimits, urlChecker, linkPreview }) => {
   const createOpts = { config: perMinute(rateLimits.createLink) }
   const deleteOpts = { config: perMinute(rateLimits.delete) }
+  const previewOpts = { config: perMinute(rateLimits.linkPreview) }
 
   app.post('/v1/links', createOpts, async (request, reply) => {
     const result = createLinkSchema.safeParse(request.body)
@@ -114,6 +116,18 @@ export const linkRoutes: FastifyPluginAsync<LinkRouteOptions> = async (app, { ra
       createdAt: link.createdAt.toISOString(),
       expiresAt: link.expiresAt?.toISOString() ?? null,
     }
+    return reply.header('cache-control', 'no-store').send(body)
+  })
+
+  // 預覽頁的網站卡片：目的地網頁自己提供的標題、描述、圖片網址（lib/link-preview.ts）
+  app.get<{ Params: CodeParams }>('/v1/links/:code/preview', previewOpts, async (request, reply) => {
+    const link = await findActiveLink(request.params.code)
+
+    if (!link) {
+      return reply.code(404).send({ error: 'not found' })
+    }
+
+    const body: LinkPreview = await linkPreview(link.url, request.log)
     return reply.header('cache-control', 'no-store').send(body)
   })
 

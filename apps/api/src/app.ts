@@ -11,7 +11,10 @@ import {
 } from './config.js'
 import { db, pool } from './db/index.js'
 import { startCleanupScheduler } from './jobs/cleanup.js'
+import { createPreviewFetcher, type PreviewFetcher } from './lib/link-preview.js'
+import { createPreviewCache } from './lib/preview-cache.js'
 import { createSafeBrowsingChecker, type UrlChecker } from './lib/safe-browsing.js'
+import { withYouTubeEmbed } from './lib/youtube.js'
 import { linkRoutes } from './routes/links.js'
 import { pasteRoutes } from './routes/pastes.js'
 import { reportRoutes } from './routes/reports.js'
@@ -27,6 +30,8 @@ export type AppOptions = {
   cleanup?: false | { intervalMs?: number; lockKey?: string }
   // 檢查短網址目標的函式；預設用 SAFE_BROWSING_API_KEY，false = 不檢查（測試用）
   urlChecker?: UrlChecker | false
+  // 短網址預覽頁的網站卡片：抓目的地網頁的函式（測試換成假的）和 Valkey 快取的前綴
+  linkPreview?: { fetch?: PreviewFetcher; cachePrefix?: string }
 }
 
 export async function buildApp(opts: AppOptions = {}) {
@@ -87,7 +92,14 @@ export async function buildApp(opts: AppOptions = {}) {
     app.log.warn('SAFE_BROWSING_API_KEY is not set: short link targets are not checked')
   }
 
-  await app.register(linkRoutes, { rateLimits, urlChecker })
+  // 快取的是 LinkPreview 整包 JSON：欄位有增減時把 v2 往上加，舊格式的快取就不會再被讀到（放著等它過期）
+  const linkPreview = createPreviewCache(
+    opts.linkPreview?.fetch ?? withYouTubeEmbed(createPreviewFetcher()),
+    redis,
+    opts.linkPreview?.cachePrefix ?? 'qzz:preview:v2:',
+  )
+
+  await app.register(linkRoutes, { rateLimits, urlChecker, linkPreview })
   await app.register(pasteRoutes, { rateLimits })
   await app.register(reportRoutes, { rateLimits })
 
