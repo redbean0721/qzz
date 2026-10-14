@@ -122,6 +122,27 @@ kubectl -n qzz exec deploy/qzz-api -- node dist/admin.js resolve paste abc1234  
 reporter IP). `disable` also marks the target's open reports resolved. Reports are deleted together with their
 content (expiry or the creator's delete token); a takedown keeps them.
 
+## Investigating abuse
+
+When something is abused at scale, find the source and take everything from it down at once:
+
+```sh
+kubectl -n qzz exec deploy/qzz-api -- node dist/admin.js recent --since 1h            # newest links and pastes with creator IPs
+kubectl -n qzz exec deploy/qzz-api -- node dist/admin.js recent pastes --limit 100
+kubectl -n qzz exec deploy/qzz-api -- node dist/admin.js ips --since 24h              # which ranges created the most (IPv4 /24, IPv6 /48)
+kubectl -n qzz exec deploy/qzz-api -- node dist/admin.js ips --v4 32 --v6 64          # finer: single IPv4 addresses, IPv6 /64s
+kubectl -n qzz exec deploy/qzz-api -- node dist/admin.js by-ip 203.0.113.7            # everything from one IP
+kubectl -n qzz exec deploy/qzz-api -- node dist/admin.js by-ip 2001:db8:1::/48        # or a range (≥ /16 IPv4, ≥ /32 IPv6)
+kubectl -n qzz exec deploy/qzz-api -- node dist/admin.js disable-ip 203.0.113.7       # lists what would be taken down
+kubectl -n qzz exec deploy/qzz-api -- node dist/admin.js disable-ip 203.0.113.7 --yes # takes it down, resolves its reports
+```
+
+`ips` groups by range because changing addresses is cheap (an IPv6 /48 costs a few dollars a year); its address
+count tells one heavy user apart from many users behind the same ISP range — check `by-ip` before taking a whole
+range down. `disable-ip --yes` prints the codes it disabled; restore a mistake with `enable link <code>` / `enable paste <code>`.
+Paste previews and URLs are printed with control characters escaped (`\u{1b}`), so content can't drive the terminal.
+Creator IPs are only kept until the content expires (see the privacy page).
+
 ## Checks
 
 ```sh
