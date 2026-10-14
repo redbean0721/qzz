@@ -1,4 +1,10 @@
-import type { CreateLinkInput, CreatePasteInput, LinkResponse, PasteResponse } from '@qzz/shared'
+import {
+  pasteLanguagesResponseSchema,
+  type CreateLinkInput,
+  type CreatePasteInput,
+  type LinkResponse,
+  type PasteResponse,
+} from '@qzz/shared'
 
 export const API_ORIGIN = typeof __API_ORIGIN__ === 'string' ? __API_ORIGIN__ : 'https://qzz.tw'
 
@@ -57,8 +63,31 @@ const json = (body: unknown): RequestInit => ({
 export const createLink = (input: CreateLinkInput, doFetch?: typeof fetch) =>
   request<LinkResponse>('/v1/links', json(input), doFetch)
 
-export const createPaste = (input: CreatePasteInput, doFetch?: typeof fetch) =>
+// language 可以是 API 新增、但這個版本還不認得的語言（見 fetchLanguages），由 API 檢查
+export type CreatePasteRequest = Omit<CreatePasteInput, 'language'> & { language?: string }
+
+export const createPaste = (input: CreatePasteRequest, doFetch?: typeof fetch) =>
   request<PasteResponse>('/v1/pastes', json(input), doFetch)
+
+// 語言代號只會是小寫英數加 + # -；不合格式的整份不用
+const LANGUAGE = /^[a-z0-9+#-]{1,32}$/
+
+/**
+ * API 目前支援的貼文語言（新增語言不用發新版擴充功能）。連不上、回應格式不對，或清單裡沒有 text 時回傳 null，
+ * 呼叫的人繼續用內建的 PASTE_LANGUAGES
+ */
+export async function fetchLanguages(doFetch?: typeof fetch): Promise<string[] | null> {
+  try {
+    const body = await request<unknown>('/v1/pastes/languages', { method: 'GET' }, doFetch)
+    const parsed = pasteLanguagesResponseSchema.safeParse(body)
+    if (!parsed.success) return null
+    const { languages } = parsed.data
+    if (!languages.includes('text') || !languages.every((l) => LANGUAGE.test(l))) return null
+    return [...new Set(languages)]
+  } catch {
+    return null
+  }
+}
 
 export const deleteItem = (kind: 'link' | 'paste', code: string, deleteToken: string, doFetch?: typeof fetch) =>
   request<void>(

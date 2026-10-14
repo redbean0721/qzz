@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { ApiError, createLink, deleteItem, errorMessage } from './api'
+import { PASTE_LANGUAGES } from '@qzz/shared'
+import { ApiError, createLink, createPaste, deleteItem, errorMessage, fetchLanguages } from './api'
 
 function fakeFetch(respond: () => Response | Promise<Response>) {
   const calls: Array<{ url: string; init?: RequestInit }> = []
@@ -60,4 +61,35 @@ test('deleteItem sends the token as a Bearer header and accepts 204', async () =
   assert.equal(calls[0]!.url, 'https://qzz.tw/v1/pastes/abc1234')
   assert.equal(calls[0]!.init?.method, 'DELETE')
   assert.equal(new Headers(calls[0]!.init?.headers).get('authorization'), 'Bearer secret-token')
+})
+
+test('fetchLanguages reads the supported languages from the API', async () => {
+  // API 新增了這個版本不認得的語言：照樣顯示
+  const languages = [...PASTE_LANGUAGES, 'kotlin']
+  const { fn, calls } = fakeFetch(() => Response.json({ languages }))
+  assert.deepEqual(await fetchLanguages(fn), languages)
+  assert.equal(calls[0]!.url, 'https://qzz.tw/v1/pastes/languages')
+  assert.equal(calls[0]!.init?.method, 'GET')
+})
+
+test('fetchLanguages falls back (null) on errors and odd responses', async () => {
+  const cases: Array<() => Response> = [
+    () => {
+      throw new TypeError('Failed to fetch')
+    },
+    () => new Response('Bad Gateway', { status: 502 }),
+    () => new Response('<html>', { status: 200 }),
+    () => Response.json({ languages: 'text' }),
+    () => Response.json({ languages: ['python'] }), // 沒有 text
+    () => Response.json({ languages: ['text', '<img src=x>'] }),
+    () => Response.json({ languages: ['text', 1] }),
+  ]
+  for (const respond of cases) assert.equal(await fetchLanguages(fakeFetch(respond).fn), null)
+})
+
+test('createPaste sends a language the API added after this build', async () => {
+  const body = { code: 'abc1234', url: 'https://qzz.tw/p/abc1234', rawUrl: 'https://qzz.tw/v1/pastes/abc1234/raw', expiresAt: null, deleteToken: 't' }
+  const { fn, calls } = fakeFetch(() => Response.json(body, { status: 201 }))
+  await createPaste({ content: 'fun main() {}', language: 'kotlin', expiresIn: '1d' }, fn)
+  assert.deepEqual(JSON.parse(String(calls[0]!.init?.body)), { content: 'fun main() {}', language: 'kotlin', expiresIn: '1d' })
 })

@@ -3,6 +3,16 @@ import { expiresInSchema } from './common.js'
 
 export const MAX_PASTE_BYTES = 512 * 1024 // 512 KB
 
+// 建立貼文時可選的語言，也是語法高亮的白名單；text = 純文字。
+// API 只接受這些值，擴充功能從 GET /v1/pastes/languages 讀取（新增語言不用發新版）。
+// 只能新增、不要刪除或改名：沒更新的擴充功能（0.1.0 寫死了這份清單）還會送出舊的值
+export const PASTE_LANGUAGES = [
+  'text', 'bash', 'c', 'cpp', 'css', 'go', 'html', 'java', 'javascript',
+  'json', 'markdown', 'python', 'rust', 'sql', 'typescript', 'yaml',
+] as const
+
+export const pasteLanguageSchema = z.enum(PASTE_LANGUAGES, { error: '不支援這個語言' })
+
 export const createPasteSchema = z.object({
   content: z
     .string()
@@ -13,7 +23,7 @@ export const createPasteSchema = z.object({
     )
     // Postgres TEXT 不能存 NUL
     .refine((s) => !s.includes('\0'), '內容不可包含 NUL 字元'),
-  language: z.string().max(32).optional(),
+  language: pasteLanguageSchema.optional(),
   expiresIn: expiresInSchema.default('1d'),
 })
 
@@ -41,8 +51,9 @@ export const pasteViewSchema = z.object({
 
 export type PasteView = z.infer<typeof pasteViewSchema>
 
-// 建立貼文時可選的語言（之後做語法高亮時也當白名單用）；text = 純文字
-export const PASTE_LANGUAGES = [
-  'text', 'bash', 'c', 'cpp', 'css', 'go', 'html', 'java', 'javascript',
-  'json', 'markdown', 'python', 'rust', 'sql', 'typescript', 'yaml',
-] as const
+// GET /v1/pastes/languages
+export const pasteLanguagesResponseSchema = z.object({
+  languages: z.array(z.string()),
+})
+
+export type PasteLanguagesResponse = z.infer<typeof pasteLanguagesResponseSchema>

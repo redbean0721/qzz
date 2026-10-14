@@ -1,7 +1,9 @@
 import type { FastifyPluginAsync } from 'fastify'
 import {
   MAX_PASTE_BYTES,
+  PASTE_LANGUAGES,
   createPasteSchema,
+  type PasteLanguagesResponse,
   type PasteResponse,
   type PasteView,
 } from '@qzz/shared'
@@ -26,6 +28,8 @@ const PUBLIC_HOST = new URL(PUBLIC_BASE_URL).host
 // Cloudflare 和這裡的記憶體都快取 10 分鐘：下架後最久 10 分鐘還拿得到舊圖（Discord 自己也會快取，那部分管不到）
 const OG_IMAGE_MAX_AGE = 600
 const OG_IMAGE_CACHE_SIZE = 50
+// 支援的語言只在部署時改變；擴充功能最晚一小時後看到新增的語言
+const LANGUAGES_MAX_AGE = 3600
 
 type CodeParams = { code: string }
 
@@ -94,6 +98,13 @@ export const pasteRoutes: FastifyPluginAsync<RateLimitedRouteOptions> = async (a
       deleteToken,
     }
     return reply.code(201).send(body)
+  })
+
+  // 擴充功能用它決定語言選單（新增語言不用發新版）；網站直接用 shared 的 PASTE_LANGUAGES。
+  // 靜態路徑優先於 /v1/pastes/:code，而產生的代碼不會是 languages（只有 6–7 碼）
+  app.get('/v1/pastes/languages', async (_request, reply) => {
+    const body: PasteLanguagesResponse = { languages: [...PASTE_LANGUAGES] }
+    return reply.header('cache-control', `public, max-age=${LANGUAGES_MAX_AGE}`).send(body)
   })
 
   app.get<{ Params: CodeParams }>('/v1/pastes/:code', async (request, reply) => {

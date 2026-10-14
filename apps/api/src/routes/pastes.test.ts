@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
 import { eq, inArray } from 'drizzle-orm'
-import { MAX_PASTE_BYTES, type PasteResponse, type PasteView } from '@qzz/shared'
+import { MAX_PASTE_BYTES, PASTE_LANGUAGES, type PasteLanguagesResponse, type PasteResponse, type PasteView } from '@qzz/shared'
 import { buildTestApp } from '../testing.js'
 import { db, schema } from '../db/index.js'
 import { generateCode } from '../lib/code.js'
@@ -48,6 +48,30 @@ test('POST /v1/pastes creates a paste with default 1d expiry', async () => {
   assert.equal(row.deleteTokenHash, hashDeleteToken(body.deleteToken))
 })
 
+test('POST /v1/pastes only accepts the supported languages', async () => {
+  for (const language of PASTE_LANGUAGES) {
+    assert.equal((await createPaste({ content: 'x', language })).statusCode, 201, language)
+  }
+  // 沒選語言也可以
+  assert.equal((await createPaste({ content: 'x' })).statusCode, 201)
+
+  for (const language of ['js', 'Python', '<script>', '', 'x'.repeat(33), 1]) {
+    const res = await createPaste({ content: 'x', language })
+    assert.equal(res.statusCode, 400, String(language))
+    const [issue] = res.json<{ error: Array<{ path: string[]; message: string }> }>().error
+    assert.deepEqual(issue?.path, ['language'])
+  }
+  const [issue] = (await createPaste({ content: 'x', language: 'js' })).json<{ error: Array<{ message: string }> }>().error
+  assert.equal(issue?.message, '不支援這個語言')
+})
+
+test('GET /v1/pastes/languages lists the supported languages', async () => {
+  const res = await app.inject({ method: 'GET', url: '/v1/pastes/languages' })
+  assert.equal(res.statusCode, 200)
+  assert.equal(res.headers['cache-control'], 'public, max-age=3600')
+  assert.deepEqual(res.json<PasteLanguagesResponse>(), { languages: [...PASTE_LANGUAGES] })
+})
+
 test('POST /v1/pastes enforces the byte limit', async () => {
   const exact = await createPaste({ content: 'a'.repeat(MAX_PASTE_BYTES) })
   assert.equal(exact.statusCode, 201)
@@ -74,7 +98,7 @@ test('POST /v1/pastes accepts max-size content that expands a lot as JSON', asyn
 })
 
 test('GET /v1/pastes/:code returns the paste as JSON', async () => {
-  const { code } = (await createPaste({ content: 'console.log(1)', language: 'js' })).json<PasteResponse>()
+  const { code } = (await createPaste({ content: 'console.log(1)', language: 'javascript' })).json<PasteResponse>()
 
   const res = await app.inject({ method: 'GET', url: `/v1/pastes/${code}` })
   assert.equal(res.statusCode, 200)
@@ -83,7 +107,7 @@ test('GET /v1/pastes/:code returns the paste as JSON', async () => {
   const body = res.json<PasteView>()
   assert.equal(body.code, code)
   assert.equal(body.content, 'console.log(1)')
-  assert.equal(body.language, 'js')
+  assert.equal(body.language, 'javascript')
   assert.equal(body.description, 'console.log(1)')
   assert.ok(!Number.isNaN(Date.parse(body.createdAt)))
 })

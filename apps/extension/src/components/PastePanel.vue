@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { MAX_PASTE_BYTES, PASTE_LANGUAGES, createPasteSchema, type ExpiresIn, type PasteResponse } from '@qzz/shared'
 import { LoaderCircle, Send } from 'lucide-vue-next'
-import { computed, ref } from 'vue'
-import { createPaste } from '../utils/api'
+import { computed, onMounted, ref } from 'vue'
+import { createPaste, fetchLanguages } from '../utils/api'
 import ExpirySelect from './ExpirySelect.vue'
 
 const content = defineModel<string>('content', { required: true })
 const emit = defineEmits<{ created: [PasteResponse] }>()
 
 const language = ref<string>('text')
+// 先用內建的清單，API 回應後換成伺服器目前支援的（新增語言不用發新版）
+const languages = ref<readonly string[]>(PASTE_LANGUAGES)
 const expiresIn = ref<ExpiresIn>('1d')
 const loading = ref(false)
 const error = ref('')
@@ -17,9 +19,17 @@ const encoder = new TextEncoder()
 const bytes = computed(() => encoder.encode(content.value).length)
 const formatKB = (n: number) => `${(n / 1024).toFixed(n < 10 * 1024 ? 1 : 0)} KB`
 
+onMounted(async () => {
+  const latest = await fetchLanguages()
+  if (!latest) return
+  languages.value = latest
+  if (!latest.includes(language.value)) language.value = 'text'
+})
+
 async function submit() {
   error.value = ''
-  const parsed = createPasteSchema.safeParse({ content: content.value, language: language.value, expiresIn: expiresIn.value })
+  // 語言不在這裡檢查：清單可能比內建的新，交給 API
+  const parsed = createPasteSchema.omit({ language: true }).safeParse({ content: content.value, expiresIn: expiresIn.value })
   if (!parsed.success) {
     error.value = parsed.error.issues[0]?.message ?? '輸入的內容有誤'
     return
@@ -27,7 +37,7 @@ async function submit() {
 
   loading.value = true
   try {
-    emit('created', await createPaste(parsed.data))
+    emit('created', await createPaste({ ...parsed.data, language: language.value }))
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
   } finally {
@@ -60,7 +70,7 @@ async function submit() {
           v-model="language"
           class="rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
         >
-          <option v-for="value in PASTE_LANGUAGES" :key="value" :value="value">
+          <option v-for="value in languages" :key="value" :value="value">
             {{ value === 'text' ? '純文字' : value }}
           </option>
         </select>
