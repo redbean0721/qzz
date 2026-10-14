@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { expiresInSchema } from './common.js'
+import { linkEmbedSchema } from './embed.js'
 
 export const createLinkSchema = z.object({
   url: z
@@ -40,8 +41,9 @@ export const linkPreviewSchema = z.object({
   image: z.string().nullable(),
   // 目的地本身是影片檔（mp4 / webm / ogg）時是它的網址；目的地是圖片檔時放在 image
   video: z.string().nullable(),
-  // 目的地是 YouTube 影片、而且 YouTube 允許嵌入時才有：預覽頁直接嵌入播放器（取代 image）。start 是秒數
-  youtube: z.object({ id: z.string(), start: z.number().int().nonnegative() }).nullable(),
+  // 目的地是支援的影片網站（YouTube、Vimeo、Twitch、Bilibili、Niconico）而且可以嵌入時才有：
+  // 預覽頁直接嵌入該網站的播放器（取代 image）
+  embed: linkEmbedSchema.nullable(),
 })
 
 export type LinkPreview = z.infer<typeof linkPreviewSchema>

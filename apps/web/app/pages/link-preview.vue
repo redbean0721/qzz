@@ -18,7 +18,7 @@ useSeoMeta({
   robots: 'noindex, nofollow',
 })
 // 整頁不送 referrer：<video> 沒有 referrerpolicy 屬性，對方網站只能從這裡關掉。
-// YouTube 的 iframe 自己設了 strict-origin-when-cross-origin（它需要 referrer）
+// 影片網站播放器的 iframe 自己設了 strict-origin-when-cross-origin（YouTube 需要 referrer）
 useHead({ meta: [{ name: 'referrer', content: 'no-referrer' }] })
 
 const { data: link, error } = await useFetch<LinkView>(`/v1/links/${code}/info`, {
@@ -49,11 +49,11 @@ const { data: preview, pending: previewPending } = useFetch<LinkPreview>(`/v1/li
   server: false,
   lazy: true,
 })
-// YouTube 影片而且允許嵌入時（API 問過 oEmbed），直接嵌入播放器取代預覽圖
-const youtube = computed(() => preview.value?.youtube ?? null)
+// 支援的影片網站而且可以嵌入時（API 檢查過），直接嵌入該網站的播放器取代預覽圖
+const embed = computed(() => preview.value?.embed ?? null)
 const hasText = computed(() => !!(preview.value?.title || preview.value?.description))
 const hasPreview = computed(
-  () => hasText.value || !!preview.value?.image || !!preview.value?.video || !!youtube.value,
+  () => hasText.value || !!preview.value?.image || !!preview.value?.video || !!embed.value,
 )
 const imageFailed = ref(false)
 const videoFailed = ref(false)
@@ -91,7 +91,7 @@ const videoFailed = ref(false)
               {{ preview.description }}
             </p>
           </div>
-          <YouTubeEmbed v-if="youtube" :id="youtube.id" :start="youtube.start" :title="preview.title" />
+          <VideoEmbed v-if="embed" :embed="embed" :title="preview.title" />
           <!-- 影片只先讀長度等資訊，按播放才下載內容 -->
           <video
             v-else-if="preview.video && !videoFailed"

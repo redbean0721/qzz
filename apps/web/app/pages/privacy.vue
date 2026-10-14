@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // 內容要跟實際的資料處理一致：改了 API / 網站 / 擴充功能的資料流程時，記得一起更新這頁和 UPDATED_AT
-const UPDATED_AT = '2026-10-10'
+const UPDATED_AT = '2026-10-14'
 
 useSeoMeta({
   title: '隱私權政策 – qzz',
@@ -60,7 +60,7 @@ const list = 'list-disc space-y-1.5 pl-5'
       <li>
         <strong>短網址預覽頁的目的地網站</strong>：開啟短網址的預覽頁（短網址後面加 <code>+</code>）時，我們的伺服器會去讀取目的地網頁的標題、描述和預覽圖網址，這個請求不帶你的任何資訊。預覽圖則由你的瀏覽器直接向該網站載入（不送出 referrer），所以該網站會看到你的 IP 位址。目的地本身是圖片或影片檔時，預覽頁會直接顯示圖片或放上播放器，同樣由你的瀏覽器向該網站載入；影片只會先讀取長度等基本資訊，按下播放才會下載內容。</li>
       <li>
-        <strong>YouTube</strong>：短網址指向 YouTube 影片時，我們的伺服器會向 YouTube 查詢這部影片能不能嵌入其他網站（不帶你的任何資訊）。可以的話，預覽頁會直接嵌入 YouTube 的播放器（隱私強化模式的 youtube-nocookie.com），YouTube 會看到你的 IP 位址，觀看資料依 Google 的隱私權政策處理；不能嵌入的影片則跟其他網站一樣顯示預覽圖。</li>
+        <strong>影片網站</strong>：短網址指向 YouTube、Vimeo、Twitch、Bilibili 或 Niconico 的影片時，預覽頁會直接嵌入該網站的播放器，該網站會看到你的 IP 位址，觀看資料依各網站的隱私權政策處理（YouTube 使用隱私強化模式 youtube-nocookie.com，Vimeo 會被要求不記錄觀看資料）。嵌入前，我們的伺服器會向 YouTube 和 Niconico 查詢影片能不能嵌入（不帶你的任何資訊），Bilibili 則從讀到的影片網頁判斷；不能嵌入的影片跟其他網站一樣顯示預覽圖。</li>
     </ul>
 
     <h2 :class="h2">只存在你瀏覽器裡的資料</h2>

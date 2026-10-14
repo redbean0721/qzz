@@ -11,10 +11,10 @@ import {
 } from './config.js'
 import { db, pool } from './db/index.js'
 import { startCleanupScheduler } from './jobs/cleanup.js'
+import { withEmbed } from './lib/embed.js'
 import { createPreviewFetcher, type PreviewFetcher } from './lib/link-preview.js'
 import { createPreviewCache } from './lib/preview-cache.js'
 import { createSafeBrowsingChecker, type UrlChecker } from './lib/safe-browsing.js'
-import { withYouTubeEmbed } from './lib/youtube.js'
 import { linkRoutes } from './routes/links.js'
 import { pasteRoutes } from './routes/pastes.js'
 import { reportRoutes } from './routes/reports.js'
@@ -94,9 +94,9 @@ export async function buildApp(opts: AppOptions = {}) {
 
   // 快取的是 LinkPreview 整包 JSON：欄位有增減時把版本往上加，舊格式的快取就不會再被讀到（放著等它過期）
   const linkPreview = createPreviewCache(
-    opts.linkPreview?.fetch ?? withYouTubeEmbed(createPreviewFetcher()),
+    opts.linkPreview?.fetch ?? withEmbed(createPreviewFetcher()),
     redis,
-    opts.linkPreview?.cachePrefix ?? 'qzz:preview:v3:',
+    opts.linkPreview?.cachePrefix ?? 'qzz:preview:v4:',
   )
 
   await app.register(linkRoutes, { rateLimits, urlChecker, linkPreview })

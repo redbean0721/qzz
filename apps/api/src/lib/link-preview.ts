@@ -253,7 +253,7 @@ export function parseHead(html: string, pageUrl: URL): LinkPreview {
     siteName: clean(meta['og:site_name'], MAX_TITLE),
     image,
     video: null,
-    youtube: null,
+    embed: null,
   }
 }
 
@@ -263,7 +263,7 @@ export const EMPTY_PREVIEW: LinkPreview = {
   siteName: null,
   image: null,
   video: null,
-  youtube: null,
+  embed: null,
 }
 
 export type PreviewFetcher = (url: string) => Promise<LinkPreview>
