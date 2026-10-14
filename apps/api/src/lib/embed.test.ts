@@ -181,6 +181,26 @@ test('Bilibili videos are embedded unless the page says they are gone', () => {
   assert.equal(bilibiliPageLooksPlayable(EMPTY_PREVIEW), true)
 })
 
+test('withEmbed drops the template description of a deleted Bilibili video', async () => {
+  const fixture = (name: string) => readFileSync(new URL(`./fixtures/${name}.html`, import.meta.url), 'utf-8')
+  const fetcher = (name: string) =>
+    withEmbed(async (url) => parseHead(fixture(name), new URL(url)), createEmbedCheck(async () => {
+      throw new Error('Bilibili is checked from its page only')
+    }))
+
+  const deleted = await fetcher('bilibili-deleted')('https://www.bilibili.com/video/BV1GJ411x7h7/')
+  // 原本的描述是「{$0}, 视频播放量 undefined、弹幕量 {$1}…」
+  assert.match(parseHead(fixture('bilibili-deleted'), new URL('https://www.bilibili.com/')).description ?? '', /undefined/)
+  assert.equal(deleted.embed, null)
+  assert.equal(deleted.description, null)
+  assert.match(deleted.title ?? '', /视频去哪了呢/)
+
+  // 還在的影片：描述照樣保留
+  const video = await fetcher('bilibili-video')('https://www.bilibili.com/video/BV1hJp469Eo4/')
+  assert.deepEqual(video.embed, { provider: 'bilibili', id: 'BV1hJp469Eo4', page: 1, start: 0 })
+  assert.ok(video.description)
+})
+
 test('createEmbedCheck only asks the sites that can answer', async () => {
   const requested: string[] = []
   const fetchImpl: typeof fetch = async (input) => {

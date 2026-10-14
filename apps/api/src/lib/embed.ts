@@ -242,6 +242,9 @@ export function withEmbed(fetchHead: PreviewFetcher, check: EmbedCheck = createE
     // 讀不到影片網站的網頁時還是可以嵌入，所以這裡不讓錯誤往外丟；查詢和讀網頁同時進行
     const head = fetchHead(url).catch(() => null)
     const [page, embeddable] = await Promise.all([head, check(embed, head)])
-    return { ...(page ?? EMPTY_PREVIEW), embed: embeddable ? embed : null }
+    const preview: LinkPreview = { ...(page ?? EMPTY_PREVIEW), embed: embeddable ? embed : null }
+    // 已刪除的 Bilibili 影片頁，描述是沒填好的範本（「{$0}, 视频播放量 undefined、弹幕量 {$1}…」），只留標題
+    if (embed.provider === 'bilibili' && !embeddable) preview.description = null
+    return preview
   }
 }
