@@ -48,9 +48,12 @@ export const linkRoutes: FastifyPluginAsync<LinkRouteOptions> = async (app, { ra
     }
 
     const { url, expiresIn } = result.data
+    // 檢查過沒問題就記下時間，定期重新檢查從這裡開始算；沒檢查（沒設 key、Google 出錯）的會在下一輪先被檢查
+    let checkedAt: Date | null = null
 
     if (urlChecker) {
       const verdict = await urlChecker(url)
+      if (verdict.status === 'safe') checkedAt = new Date()
       if (verdict.status === 'unsafe') {
         request.log.warn({ url, threats: verdict.threats }, 'rejected unsafe link target')
         // 跟 zod 的錯誤格式一樣，前端直接顯示 message
@@ -76,6 +79,7 @@ export const linkRoutes: FastifyPluginAsync<LinkRouteOptions> = async (app, { ra
           deleteTokenHash: hashDeleteToken(deleteToken),
           creatorIp: request.ip,
           expiresAt,
+          checkedAt,
         }),
       (code, attempt) => request.log.warn({ code, attempt }, 'short code collision, retrying'),
     )

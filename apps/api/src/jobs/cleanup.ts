@@ -1,8 +1,8 @@
-import { randomUUID } from 'node:crypto'
 import type { FastifyBaseLogger } from 'fastify'
 import { sql } from 'drizzle-orm'
 import type { Redis } from 'ioredis'
 import { db, schema } from '../db/index.js'
+import { runWithLock, startInterval } from './scheduler.js'
 
 const DEFAULT_BATCH_SIZE = 1000
 const LOCK_TTL_MS = 10 * 60 * 1000
@@ -37,28 +37,12 @@ export async function cleanupExpired(batchSize?: number): Promise<CleanupResult>
   }
 }
 
-// 只刪自己拿到的鎖，避免鎖過期後被別的實例取得又被這裡誤刪
-const RELEASE_LOCK = `
-  if redis.call('GET', KEYS[1]) == ARGV[1] then
-    return redis.call('DEL', KEYS[1])
-  end
-  return 0
-`
-
 // 多個 API 實例同時跑時只讓一個執行；拿不到鎖（或 Valkey 不可用）就跳過這一輪，回傳 null
-export async function runCleanupWithLock(
+export function runCleanupWithLock(
   redis: Redis,
   opts: { lockKey: string; batchSize?: number },
 ): Promise<CleanupResult | null> {
-  const token = randomUUID()
-  const acquired = await redis.set(opts.lockKey, token, 'PX', LOCK_TTL_MS, 'NX')
-  if (acquired !== 'OK') return null
-
-  try {
-    return await cleanupExpired(opts.batchSize)
-  } finally {
-    await redis.eval(RELEASE_LOCK, 1, opts.lockKey, token).catch(() => {})
-  }
+  return runWithLock(redis, opts.lockKey, LOCK_TTL_MS, () => cleanupExpired(opts.batchSize))
 }
 
 export type CleanupSchedulerOptions = {
@@ -70,9 +54,7 @@ export type CleanupSchedulerOptions = {
 
 // 啟動時先跑一次，之後每 intervalMs 跑一次；回傳的 stop 會等跑到一半的那輪結束
 export function startCleanupScheduler(opts: CleanupSchedulerOptions): () => Promise<void> {
-  let running: Promise<void> | undefined
-
-  const run = async () => {
+  return startInterval(opts.intervalMs, async () => {
     try {
       const result = await runCleanupWithLock(opts.redis, { lockKey: opts.lockKey })
       if (result === null) {
@@ -83,20 +65,5 @@ export function startCleanupScheduler(opts: CleanupSchedulerOptions): () => Prom
     } catch (err) {
       opts.log.error({ err }, 'cleanup failed')
     }
-  }
-
-  const tick = () => {
-    running ??= run().finally(() => {
-      running = undefined
-    })
-  }
-
-  tick()
-  const timer = setInterval(tick, opts.intervalMs)
-  timer.unref()
-
-  return async () => {
-    clearInterval(timer)
-    await running
-  }
+  })
 }

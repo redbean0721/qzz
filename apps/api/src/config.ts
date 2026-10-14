@@ -34,6 +34,8 @@ export const TRUST_PROXY = trustProxyEnv()
 export const CLEANUP_INTERVAL_MS = intEnv('CLEANUP_INTERVAL_MINUTES', 60) * 60 * 1000
 // 選填：沒設定就不檢查短網址的目標（本機開發、測試）
 export const SAFE_BROWSING_API_KEY = process.env.SAFE_BROWSING_API_KEY || undefined
+// 多久跑一次 Safe Browsing 重新檢查（每輪只查到期的短網址，見 src/jobs/safe-browsing-recheck.ts）
+export const SAFE_BROWSING_RECHECK_INTERVAL_MS = intEnv('SAFE_BROWSING_RECHECK_MINUTES', 10) * 60 * 1000
 
 // 每個 IP 每分鐘的上限
 export type RateLimits = {

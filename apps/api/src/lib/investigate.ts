@@ -19,6 +19,8 @@ export type ContentRow = {
   bytes: number | null
   disabled: boolean
   expired: boolean
+  /** 定期重新檢查時被 Safe Browsing 標記的威脅類型（短網址才有） */
+  threats: string[] | null
   creatorIp: string | null
   createdAt: Date
 }
@@ -61,6 +63,7 @@ async function selectContent(kind: Kind, where: SQL | undefined, limit: number):
       bytes: kind === 'link' ? sql<null>`null` : sql<number>`octet_length(${pastes.content})`,
       disabled: table.disabled,
       expired: sql<boolean>`coalesce(${table.expiresAt} <= now(), false)`,
+      threats: kind === 'link' ? links.safeBrowsingThreats : sql<null>`null`,
       creatorIp: table.creatorIp,
       createdAt: table.createdAt,
     })
@@ -221,7 +224,13 @@ function formatBytes(bytes: number): string {
 
 /** 一筆內容一行：類型、代碼、建立時間、IP、狀態，再接目的地或貼文開頭 */
 export function formatContentRow(row: ContentRow): string {
-  const flags = [row.disabled && '[disabled]', row.expired && '[expired]'].filter(Boolean).join(' ')
+  const flags = [
+    row.disabled && '[disabled]',
+    row.threats && `[safe browsing: ${row.threats.join(', ')}]`,
+    row.expired && '[expired]',
+  ]
+    .filter(Boolean)
+    .join(' ')
   const detail =
     row.kind === 'link'
       ? printable(row.summary)

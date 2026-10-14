@@ -24,8 +24,12 @@ export const links = pgTable(
     disabled: boolean('disabled').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     expiresAt: timestamp('expires_at', { withTimezone: true }),
+    // 上次用 Safe Browsing 檢查目標網址（建立時或定期重新檢查）沒問題的時間；null = 還沒檢查過
+    checkedAt: timestamp('checked_at', { withTimezone: true }),
+    // 定期重新檢查時被 Google 標記的威脅類型（同時自動下架）。管理員手動恢復後不再自動下架
+    safeBrowsingThreats: text('safe_browsing_threats').array(),
   },
-  (t) => [index('links_expires_at_idx').on(t.expiresAt)],
+  (t) => [index('links_expires_at_idx').on(t.expiresAt), index('links_checked_at_idx').on(t.checkedAt)],
 )
 
 export const pastes = pgTable(

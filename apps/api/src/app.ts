@@ -7,14 +7,21 @@ import {
   RATE_LIMITS,
   REDIS_URL,
   SAFE_BROWSING_API_KEY,
+  SAFE_BROWSING_RECHECK_INTERVAL_MS,
   type RateLimits,
 } from './config.js'
 import { db, pool } from './db/index.js'
 import { startCleanupScheduler } from './jobs/cleanup.js'
+import { startRecheckScheduler } from './jobs/safe-browsing-recheck.js'
 import { withEmbed } from './lib/embed.js'
 import { createPreviewFetcher, type PreviewFetcher } from './lib/link-preview.js'
 import { createPreviewCache } from './lib/preview-cache.js'
-import { createSafeBrowsingChecker, type UrlChecker } from './lib/safe-browsing.js'
+import {
+  createSafeBrowsingBatchChecker,
+  createSafeBrowsingChecker,
+  type BatchChecker,
+  type UrlChecker,
+} from './lib/safe-browsing.js'
 import { linkRoutes } from './routes/links.js'
 import { pasteRoutes } from './routes/pastes.js'
 import { reportRoutes } from './routes/reports.js'
@@ -30,6 +37,8 @@ export type AppOptions = {
   cleanup?: false | { intervalMs?: number; lockKey?: string }
   // 檢查短網址目標的函式；預設用 SAFE_BROWSING_API_KEY，false = 不檢查（測試用）
   urlChecker?: UrlChecker | false
+  // 定期用 Safe Browsing 重新檢查短網址；預設有 SAFE_BROWSING_API_KEY 才跑，false = 不跑（測試用）
+  safeBrowsingRecheck?: false | { check?: BatchChecker; intervalMs?: number; lockKey?: string }
   // 短網址預覽頁的網站卡片：抓目的地網頁的函式（測試換成假的）和 Valkey 快取的前綴
   linkPreview?: { fetch?: PreviewFetcher; cachePrefix?: string }
 }
@@ -52,9 +61,24 @@ export async function buildApp(opts: AppOptions = {}) {
     })
   }
 
+  let stopRecheck: (() => Promise<void>) | undefined
+  if (opts.safeBrowsingRecheck !== false) {
+    const {
+      check = SAFE_BROWSING_API_KEY ? createSafeBrowsingBatchChecker(SAFE_BROWSING_API_KEY) : undefined,
+      intervalMs = SAFE_BROWSING_RECHECK_INTERVAL_MS,
+      lockKey = 'qzz:lock:safe-browsing-recheck',
+    } = opts.safeBrowsingRecheck ?? {}
+    if (check) {
+      app.addHook('onReady', async () => {
+        stopRecheck = startRecheckScheduler({ redis, log: app.log, check, intervalMs, lockKey })
+      })
+    }
+  }
+
   // pool 是 module 層級共用的；同一個 process 建多個 app（測試）時只關一次
   app.addHook('onClose', async () => {
     await stopCleanup?.()
+    await stopRecheck?.()
     redis.disconnect()
     if (!pool.ending) await pool.end()
   })

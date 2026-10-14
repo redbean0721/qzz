@@ -59,15 +59,19 @@ test('formatContentRow shows one line per item', () => {
   const at = new Date('2026-10-14T07:18:36.779Z')
   const link: ContentRow = {
     kind: 'link', code: 'Ab3dE9k', summary: 'https://example.com/x', language: null, bytes: null,
-    disabled: true, expired: false, creatorIp: '203.0.113.7', createdAt: at,
+    disabled: true, expired: false, threats: null, creatorIp: '203.0.113.7', createdAt: at,
   }
   assert.equal(
     formatContentRow(link),
     'link   Ab3dE9k  2026-10-14T07:18:36Z  203.0.113.7      [disabled]  https://example.com/x',
   )
+  assert.equal(
+    formatContentRow({ ...link, threats: ['SOCIAL_ENGINEERING'] }),
+    'link   Ab3dE9k  2026-10-14T07:18:36Z  203.0.113.7      [disabled] [safe browsing: SOCIAL_ENGINEERING]  https://example.com/x',
+  )
   const paste: ContentRow = {
     kind: 'paste', code: 'Qz7xK2p', summary: 'line 1\nline 2', language: 'python', bytes: 2048,
-    disabled: false, expired: true, creatorIp: null, createdAt: at,
+    disabled: false, expired: true, threats: null, creatorIp: null, createdAt: at,
   }
   assert.equal(formatContentRow(paste), 'paste  Qz7xK2p  2026-10-14T07:18:36Z  -                [expired]  python 2.0 KB  "line 1 line 2"')
 })
@@ -86,7 +90,8 @@ before(async () => {
     .insert(schema.links)
     .values([
       { code: code.a, url: 'https://example.com/a', deleteTokenHash: 'x', creatorIp: ip6a, createdAt: ago(40) },
-      { code: code.b, url: 'https://example.com/b', deleteTokenHash: 'x', creatorIp: ip6b, createdAt: ago(30), expiresAt: ago(1) },
+      // 不放已過期的：清除的測試會刪掉 dev DB 裡所有過期的資料，同時跑時這筆會不見（expired 的顯示由上面的 formatContentRow 測）
+      { code: code.b, url: 'https://example.com/b', deleteTokenHash: 'x', creatorIp: ip6b, createdAt: ago(30), expiresAt: new Date(Date.now() + 3_600_000) },
       { code: code.d, url: 'https://example.com/d', deleteTokenHash: 'x', creatorIp: ip6a, createdAt: ago(20), disabled: true },
     ])
     .returning({ id: schema.links.id })
@@ -123,7 +128,7 @@ test('listRecent includes every kind with its state', async () => {
   )
   assert.equal(paste!.summary.length, 80)
   assert.equal(d!.disabled, true)
-  assert.equal(b!.expired, true)
+  assert.equal(b!.expired, false)
 
   const pastesOnly = await listRecent({ kind: 'paste', sinceMs: 3_600_000, limit: 1000 })
   assert.ok(pastesOnly.every((row) => row.kind === 'paste'))

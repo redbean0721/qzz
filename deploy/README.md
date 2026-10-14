@@ -122,6 +122,17 @@ kubectl -n qzz exec deploy/qzz-api -- node dist/admin.js resolve paste abc1234  
 reporter IP). `disable` also marks the target's open reports resolved. Reports are deleted together with their
 content (expiry or the creator's delete token); a takedown keeps them.
 
+## Safe Browsing recheck
+
+Link targets are checked with Google Safe Browsing when a link is created and again later, because a page can turn
+malicious after it passed: links created within a day are rechecked hourly, within a week every 6 hours, then daily.
+Each run (every `SAFE_BROWSING_RECHECK_MINUTES`, default 10, one API Pod at a time via a Valkey lock) checks at most
+1000 due links, 50 URLs per Google request. A flagged link is **disabled automatically**, its threat types are stored
+(`admin show` lists `safeBrowsingThreats`; listings mark it `[safe browsing: …]`), its open reports are resolved and
+the API logs `link disabled: target flagged by Safe Browsing` at `warn`. If it was a false positive, `admin enable`
+restores it and the recheck leaves it alone from then on. Lookups that fail are retried in the next run.
+Without `SAFE_BROWSING_API_KEY` the recheck doesn't run.
+
 ## Investigating abuse
 
 When something is abused at scale, find the source and take everything from it down at once:

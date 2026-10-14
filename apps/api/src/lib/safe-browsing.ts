@@ -1,4 +1,4 @@
-// Google Safe Browsing v5 urls:search：建立短網址前檢查目標網址
+// Google Safe Browsing v5 urls:search：建立短網址前檢查目標網址，之後定期重新檢查（src/jobs/safe-browsing-recheck.ts）
 // https://developers.google.com/safe-browsing/reference/rest/v5/urls/search
 // v5 只回 protobuf（$alt=json 會得到 400 Unsupported Output Format），所以自己解析回應
 const ENDPOINT = 'https://safebrowsing.googleapis.com/v5/urls:search'
@@ -101,23 +101,52 @@ export function decodeThreatTypes(body: Uint8Array): string[] {
   return [...threats]
 }
 
-export function createSafeBrowsingChecker(
-  apiKey: string,
-  opts: { timeoutMs?: number; fetch?: typeof fetch } = {},
-): UrlChecker {
-  const { timeoutMs = 2000, fetch: doFetch = fetch } = opts
+// 一次最多查 50 個網址（第 51 個起 Google 回 400）
+export const MAX_URLS_PER_REQUEST = 50
 
-  return async (url) => {
-    const params = new URLSearchParams({ key: apiKey, urls: url })
-    try {
-      const res = await doFetch(`${ENDPOINT}?${params}`, { signal: AbortSignal.timeout(timeoutMs) })
-      if (!res.ok) {
-        return { status: 'error', error: `HTTP ${res.status}` }
-      }
-      const threats = decodeThreatTypes(new Uint8Array(await res.arrayBuffer()))
-      return threats.length > 0 ? { status: 'unsafe', threats } : { status: 'safe' }
-    } catch (err) {
-      return { status: 'error', error: err instanceof Error ? err.message : String(err) }
+type SafeBrowsingOptions = { timeoutMs?: number; fetch?: typeof fetch }
+
+// 一次查詢：回傳這批網址合起來命中的威脅類型
+async function search(apiKey: string, urls: string[], opts: SafeBrowsingOptions): Promise<UrlVerdict> {
+  const { timeoutMs = 2000, fetch: doFetch = fetch } = opts
+  const params = new URLSearchParams({ key: apiKey })
+  for (const url of urls) params.append('urls', url)
+  try {
+    const res = await doFetch(`${ENDPOINT}?${params}`, { signal: AbortSignal.timeout(timeoutMs) })
+    if (!res.ok) {
+      return { status: 'error', error: `HTTP ${res.status}` }
     }
+    const threats = decodeThreatTypes(new Uint8Array(await res.arrayBuffer()))
+    return threats.length > 0 ? { status: 'unsafe', threats } : { status: 'safe' }
+  } catch (err) {
+    return { status: 'error', error: err instanceof Error ? err.message : String(err) }
+  }
+}
+
+export function createSafeBrowsingChecker(apiKey: string, opts: SafeBrowsingOptions = {}): UrlChecker {
+  return (url) => search(apiKey, [url], opts)
+}
+
+/** 每個網址各自的結果（同一個網址只查一次） */
+export type BatchChecker = (urls: string[]) => Promise<Map<string, UrlVerdict>>
+
+/**
+ * 定期重新檢查用：每 50 個網址查一次。回應裡的網址是 Google 正規化過的（沒有 scheme 和 query），對不回原本的網址，
+ * 所以一批裡有命中時，再把那批網址一個一個查（命中很少見，多花的請求不多）。一批查詢失敗時，那批全部是 error
+ */
+export function createSafeBrowsingBatchChecker(apiKey: string, opts: SafeBrowsingOptions = {}): BatchChecker {
+  return async (urls) => {
+    const unique = [...new Set(urls)]
+    const verdicts = new Map<string, UrlVerdict>()
+    for (let i = 0; i < unique.length; i += MAX_URLS_PER_REQUEST) {
+      const chunk = unique.slice(i, i + MAX_URLS_PER_REQUEST)
+      const verdict = await search(apiKey, chunk, opts)
+      if (verdict.status === 'unsafe' && chunk.length > 1) {
+        for (const url of chunk) verdicts.set(url, await search(apiKey, [url], opts))
+      } else {
+        for (const url of chunk) verdicts.set(url, verdict)
+      }
+    }
+    return verdicts
   }
 }

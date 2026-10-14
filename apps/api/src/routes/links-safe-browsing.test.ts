@@ -50,14 +50,26 @@ test('unsafe targets are rejected and not stored', async () => {
   assert.equal(rows.length, 0)
 })
 
-test('safe targets are created', async () => {
+const checkedAtOf = async (res: Awaited<ReturnType<typeof createLink>>) => {
+  const [row] = await db.select({ checkedAt: links.checkedAt }).from(links).where(eq(links.code, res.json<LinkResponse>().code))
+  return row?.checkedAt ?? null
+}
+
+test('safe targets are created and count as checked', async () => {
   verdict = { status: 'safe' }
-  assert.equal((await createLink('https://example.com/safe')).statusCode, 201)
+  const before = Date.now()
+  const res = await createLink('https://example.com/safe')
+  assert.equal(res.statusCode, 201)
+  // 定期重新檢查從這個時間開始算
+  assert.ok((await checkedAtOf(res))!.getTime() >= before - 1000)
 })
 
-test('a failing check lets the link through (fail open)', async () => {
+test('a failing check lets the link through (fail open), unchecked', async () => {
   verdict = { status: 'error', error: 'HTTP 503' }
-  assert.equal((await createLink('https://example.com/while-google-is-down')).statusCode, 201)
+  const res = await createLink('https://example.com/while-google-is-down')
+  assert.equal(res.statusCode, 201)
+  // 沒有 checked_at：下一輪重新檢查會先查它
+  assert.equal(await checkedAtOf(res), null)
 })
 
 test('the checker sees the validated URL, and invalid input never reaches it', async () => {

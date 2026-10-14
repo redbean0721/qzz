@@ -57,6 +57,8 @@ export async function describeTarget(target: Target) {
         creatorIp: links.creatorIp,
         createdAt: links.createdAt,
         expiresAt: links.expiresAt,
+        checkedAt: links.checkedAt,
+        safeBrowsingThreats: links.safeBrowsingThreats,
       })
       .from(links)
       .where(eq(links.code, target.code))
