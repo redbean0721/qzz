@@ -59,7 +59,8 @@ async function onDelete(item: HistoryItem) {
             {{ item.url }}
           </a>
           <p class="truncate text-[11px] text-zinc-500 dark:text-zinc-400">
-            <template v-if="item.target">{{ item.target }} · </template>{{ formatExpiry(item.expiresAt) }}
+            <template v-if="item.target">{{ item.target }} · </template
+            ><template v-if="item.burnAfterReading">閱後即焚 · </template>{{ formatExpiry(item.expiresAt) }}
           </p>
         </div>
 

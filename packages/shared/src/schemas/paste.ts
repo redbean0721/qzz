@@ -25,6 +25,8 @@ export const createPasteSchema = z.object({
     .refine((s) => !s.includes('\0'), '內容不可包含 NUL 字元'),
   language: pasteLanguageSchema.optional(),
   expiresIn: expiresInSchema.default('1d'),
+  // 閱後即焚：第一次打開（POST /v1/pastes/:code/open）就從伺服器刪除
+  burnAfterReading: z.boolean().default(false),
 })
 
 export type CreatePasteInput = z.input<typeof createPasteSchema>
@@ -41,10 +43,12 @@ export type PasteResponse = z.infer<typeof pasteResponseSchema>
 
 export const pasteViewSchema = z.object({
   code: z.string(),
-  content: z.string(),
+  // 閱後即焚的貼文在 GET 時是 null，內容只能用 POST /v1/pastes/:code/open 取得（取得後就刪除）
+  content: z.string().nullable(),
   language: z.string().nullable(),
-  // 開頭一段的純文字（Markdown 已拿掉格式符號），給 og:description 用
+  // 開頭一段的純文字（Markdown 已拿掉格式符號），給 og:description 用；閱後即焚的貼文是空字串
   description: z.string(),
+  burnAfterReading: z.boolean(),
   createdAt: z.string(),
   expiresAt: z.string().nullable(),
 })

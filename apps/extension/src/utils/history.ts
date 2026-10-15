@@ -6,6 +6,8 @@ export type HistoryItem = {
   url: string
   // 短網址的原始網址
   target?: string
+  // 閱後即焚的貼文
+  burnAfterReading?: boolean
   deleteToken: string
   expiresAt: string | null
   createdAt: string

@@ -39,6 +39,8 @@ export const pastes = pgTable(
     code: varchar('code', { length: 16 }).notNull().unique(),
     content: text('content').notNull(),
     language: varchar('language', { length: 32 }),
+    // 閱後即焚：第一次打開就整列刪除（跟用刪除碼刪除一樣）
+    burnAfterReading: boolean('burn_after_reading').notNull().default(false),
     deleteTokenHash: text('delete_token_hash').notNull(),
     creatorIp: inet('creator_ip'),
     userId: bigint('user_id', { mode: 'number' }),

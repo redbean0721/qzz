@@ -62,6 +62,7 @@ async function onDelete(item: HistoryItem) {
           </a>
           <p class="truncate text-xs text-muted">
             <template v-if="item.target">{{ item.target }} · </template>
+            <template v-if="item.burnAfterReading">閱後即焚 · </template>
             <ExpiryText :expires-at="item.expiresAt" />
           </p>
         </div>

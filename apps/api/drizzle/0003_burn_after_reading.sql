@@ -1,0 +1,1 @@
+ALTER TABLE "pastes" ADD COLUMN "burn_after_reading" boolean DEFAULT false NOT NULL;

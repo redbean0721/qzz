@@ -33,33 +33,53 @@ const LANGUAGES_MAX_AGE = 3600
 
 type CodeParams = { code: string }
 
+const pasteColumns = {
+  code: pastes.code,
+  content: pastes.content,
+  language: pastes.language,
+  burnAfterReading: pastes.burnAfterReading,
+  createdAt: pastes.createdAt,
+  expiresAt: pastes.expiresAt,
+}
+
+const isActive = (code: string) =>
+  and(
+    eq(pastes.code, code),
+    eq(pastes.disabled, false),
+    or(isNull(pastes.expiresAt), gt(pastes.expiresAt, sql`now()`)),
+  )
+
 async function findActivePaste(code: string) {
   if (!CODE_PATTERN.test(code)) return undefined
 
-  const [paste] = await db
-    .select({
-      code: pastes.code,
-      content: pastes.content,
-      language: pastes.language,
-      createdAt: pastes.createdAt,
-      expiresAt: pastes.expiresAt,
-    })
-    .from(pastes)
-    .where(
-      and(
-        eq(pastes.code, code),
-        eq(pastes.disabled, false),
-        or(isNull(pastes.expiresAt), gt(pastes.expiresAt, sql`now()`)),
-      ),
-    )
-    .limit(1)
-
+  const [paste] = await db.select(pasteColumns).from(pastes).where(isActive(code)).limit(1)
   return paste
+}
+
+type PasteRow = NonNullable<Awaited<ReturnType<typeof findActivePaste>>>
+
+// 閱後即焚的貼文只能從 POST /open 拿到內容：raw、預覽圖都當作不存在
+async function findReadablePaste(code: string) {
+  const paste = await findActivePaste(code)
+  return paste?.burnAfterReading ? undefined : paste
+}
+
+function pasteView(paste: PasteRow, { withContent }: { withContent: boolean }): PasteView {
+  return {
+    code: paste.code,
+    content: withContent ? paste.content : null,
+    language: paste.language,
+    description: withContent ? pasteDescription(paste.content, paste.language) : '',
+    burnAfterReading: paste.burnAfterReading,
+    createdAt: paste.createdAt.toISOString(),
+    expiresAt: paste.expiresAt?.toISOString() ?? null,
+  }
 }
 
 export const pasteRoutes: FastifyPluginAsync<RateLimitedRouteOptions> = async (app, { rateLimits }) => {
   const createOpts = { bodyLimit: PASTE_BODY_LIMIT, config: perMinute(rateLimits.createPaste) }
   const deleteOpts = { config: perMinute(rateLimits.delete) }
+  const openOpts = { config: perMinute(rateLimits.openPaste) }
   const ogImageOpts = { config: perMinute(rateLimits.ogImage) }
 
   // 最近畫過的圖（code → PNG 和產生時間）：加上 query string 繞過 Cloudflare 快取時也不用重畫
@@ -72,7 +92,7 @@ export const pasteRoutes: FastifyPluginAsync<RateLimitedRouteOptions> = async (a
       return reply.code(400).send({ error: result.error.issues })
     }
 
-    const { content, language, expiresIn } = result.data
+    const { content, language, expiresIn, burnAfterReading } = result.data
     const deleteToken = generateDeleteToken()
     const expiresAt = expiresAtFrom(expiresIn)
 
@@ -83,6 +103,7 @@ export const pasteRoutes: FastifyPluginAsync<RateLimitedRouteOptions> = async (a
           code,
           content,
           language,
+          burnAfterReading,
           deleteTokenHash: hashDeleteToken(deleteToken),
           creatorIp: request.ip,
           expiresAt,
@@ -114,19 +135,32 @@ export const pasteRoutes: FastifyPluginAsync<RateLimitedRouteOptions> = async (a
       return reply.code(404).send({ error: 'not found' })
     }
 
-    const body: PasteView = {
-      code: paste.code,
-      content: paste.content,
-      language: paste.language,
-      description: pasteDescription(paste.content, paste.language),
-      createdAt: paste.createdAt.toISOString(),
-      expiresAt: paste.expiresAt?.toISOString() ?? null,
-    }
+    // 閱後即焚的不給內容：Discord 等服務的預覽、預先載入都只會讀到這裡，不會把貼文用掉
+    const body = pasteView(paste, { withContent: !paste.burnAfterReading })
     return reply.header('cache-control', 'no-store').send(body)
   })
 
+  // 打開閱後即焚的貼文：刪除並回傳內容，只有一個請求拿得到（同時打開的其他請求 404）。
+  // 用 POST，網址預覽和瀏覽器預先載入不會觸發
+  app.post<{ Params: CodeParams }>('/v1/pastes/:code/open', openOpts, async (request, reply) => {
+    const { code } = request.params
+    const [paste] = CODE_PATTERN.test(code)
+      ? await db
+          .delete(pastes)
+          .where(and(isActive(code), eq(pastes.burnAfterReading, true)))
+          .returning(pasteColumns)
+      : []
+
+    // 不存在、已經被打開過、不是閱後即焚：都是 404
+    if (!paste) {
+      return reply.code(404).send({ error: 'not found' })
+    }
+
+    return reply.header('cache-control', 'no-store').send(pasteView(paste, { withContent: true }))
+  })
+
   app.get<{ Params: CodeParams }>('/v1/pastes/:code/raw', async (request, reply) => {
-    const paste = await findActivePaste(request.params.code)
+    const paste = await findReadablePaste(request.params.code)
 
     if (!paste) {
       return reply.code(404).type('text/plain; charset=utf-8').send('not found\n')
@@ -145,7 +179,7 @@ export const pasteRoutes: FastifyPluginAsync<RateLimitedRouteOptions> = async (a
   // og:image：Discord 等服務顯示的預覽圖，畫出貼文開頭幾行
   app.get<{ Params: CodeParams }>('/v1/pastes/:code/og.png', ogImageOpts, async (request, reply) => {
     // 每次都查資料庫，下架、刪除、過期後這裡立刻 404
-    const paste = await findActivePaste(request.params.code)
+    const paste = await findReadablePaste(request.params.code)
 
     if (!paste) {
       ogImages.delete(request.params.code)

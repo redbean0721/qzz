@@ -9,13 +9,19 @@ import {
 
 const LANGUAGES = PASTE_LANGUAGES.map((value) => ({ label: value === 'text' ? '純文字' : value, value }))
 
-const state = reactive<{ content: string; language: (typeof PASTE_LANGUAGES)[number]; expiresIn: ExpiresIn }>({
+const state = reactive<{
+  content: string
+  language: (typeof PASTE_LANGUAGES)[number]
+  expiresIn: ExpiresIn
+  burnAfterReading: boolean
+}>({
   content: '',
   language: 'text',
   expiresIn: '1d',
+  burnAfterReading: false,
 })
 const loading = ref(false)
-const result = ref<PasteResponse | null>(null)
+const result = ref<(PasteResponse & { burnAfterReading: boolean }) | null>(null)
 
 const history = useHistory()
 const toast = useToast()
@@ -28,13 +34,14 @@ async function onSubmit() {
   loading.value = true
   try {
     const res = await $fetch<PasteResponse>('/v1/pastes', { method: 'POST', body: state })
-    result.value = res
+    result.value = { ...res, burnAfterReading: state.burnAfterReading }
     history.add({
       kind: 'paste',
       code: res.code,
       url: res.url,
       deleteToken: res.deleteToken,
       expiresAt: res.expiresAt,
+      ...(state.burnAfterReading && { burnAfterReading: true }),
     })
     state.content = ''
   } catch (err) {
@@ -69,6 +76,9 @@ async function onSubmit() {
       <UFormField label="有效期限" name="expiresIn">
         <USelect v-model="state.expiresIn" :items="expiresOptions" class="w-32" />
       </UFormField>
+      <UFormField name="burnAfterReading" class="pb-2">
+        <UCheckbox v-model="state.burnAfterReading" label="閱後即焚" description="第一次打開就刪除" />
+      </UFormField>
       <UButton type="submit" icon="i-lucide-send" label="建立貼文" size="lg" :loading="loading" class="ml-auto" />
     </div>
   </UForm>
@@ -76,8 +86,9 @@ async function onSubmit() {
   <CreatedResult
     v-if="result"
     :url="result.url"
-    :raw-url="result.rawUrl"
+    :raw-url="result.burnAfterReading ? undefined : result.rawUrl"
     :delete-token="result.deleteToken"
     :expires-at="result.expiresAt"
+    :burn-after-reading="result.burnAfterReading"
   />
 </template>

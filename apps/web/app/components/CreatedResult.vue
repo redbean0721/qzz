@@ -6,6 +6,8 @@ defineProps<{
   rawUrl?: string
   // 短網址的預覽頁（<短網址>+）
   previewUrl?: string
+  // 閱後即焚的貼文：自己打開就沒了
+  burnAfterReading?: boolean
 }>()
 
 const copy = useCopy()
@@ -31,6 +33,16 @@ const copy = useCopy()
         <a :href="previewUrl" target="_blank" rel="noopener" class="underline" title="在短網址後面加上 + 就能預覽目的地">預覽</a>
       </template>
     </p>
+
+    <UAlert
+      v-if="burnAfterReading"
+      class="mt-4"
+      color="info"
+      variant="subtle"
+      icon="i-lucide-flame"
+      title="閱後即焚：第一個打開的人看完就會刪除"
+      description="直接把網址傳給對方，自己不要打開。網址貼到 Discord、LINE 等服務產生預覽時不會用掉它。"
+    />
 
     <UAlert
       class="mt-4"

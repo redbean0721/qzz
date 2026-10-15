@@ -94,7 +94,7 @@ async function onLinkCreated(res: LinkResponse) {
   linkUrl.value = ''
 }
 
-async function onPasteCreated(res: PasteResponse) {
+async function onPasteCreated(res: PasteResponse & { burnAfterReading: boolean }) {
   await saveHistory(
     withAdded(history.value, {
       kind: 'paste',
@@ -103,9 +103,17 @@ async function onPasteCreated(res: PasteResponse) {
       deleteToken: res.deleteToken,
       expiresAt: res.expiresAt,
       createdAt: new Date().toISOString(),
+      ...(res.burnAfterReading && { burnAfterReading: true }),
     }),
   )
-  result.value = { url: res.url, rawUrl: res.rawUrl, expiresAt: res.expiresAt, copied: await copy(res.url) }
+  result.value = {
+    url: res.url,
+    // 閱後即焚的貼文沒有 raw
+    rawUrl: res.burnAfterReading ? undefined : res.rawUrl,
+    expiresAt: res.expiresAt,
+    copied: await copy(res.url),
+    burnAfterReading: res.burnAfterReading,
+  }
   pasteContent.value = ''
 }
 

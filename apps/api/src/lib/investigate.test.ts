@@ -59,7 +59,7 @@ test('formatContentRow shows one line per item', () => {
   const at = new Date('2026-10-14T07:18:36.779Z')
   const link: ContentRow = {
     kind: 'link', code: 'Ab3dE9k', summary: 'https://example.com/x', language: null, bytes: null,
-    disabled: true, expired: false, threats: null, creatorIp: '203.0.113.7', createdAt: at,
+    disabled: true, expired: false, threats: null, burnAfterReading: false, creatorIp: '203.0.113.7', createdAt: at,
   }
   assert.equal(
     formatContentRow(link),
@@ -71,9 +71,13 @@ test('formatContentRow shows one line per item', () => {
   )
   const paste: ContentRow = {
     kind: 'paste', code: 'Qz7xK2p', summary: 'line 1\nline 2', language: 'python', bytes: 2048,
-    disabled: false, expired: true, threats: null, creatorIp: null, createdAt: at,
+    disabled: false, expired: true, threats: null, burnAfterReading: false, creatorIp: null, createdAt: at,
   }
   assert.equal(formatContentRow(paste), 'paste  Qz7xK2p  2026-10-14T07:18:36Z  -                [expired]  python 2.0 KB  "line 1 line 2"')
+  assert.equal(
+    formatContentRow({ ...paste, expired: false, burnAfterReading: true }),
+    'paste  Qz7xK2p  2026-10-14T07:18:36Z  -                [burn after reading]  python 2.0 KB  "line 1 line 2"',
+  )
 })
 
 // 每次執行用不同的位址，不會跟其他測試或舊資料混在一起

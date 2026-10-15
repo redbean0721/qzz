@@ -42,6 +42,7 @@ export type RateLimits = {
   createLink: number
   createPaste: number
   delete: number
+  openPaste: number
   report: number
   ogImage: number
   linkPreview: number
@@ -51,6 +52,8 @@ export const RATE_LIMITS: RateLimits = {
   createLink: intEnv('RATE_LIMIT_CREATE_LINK', 10),
   createPaste: intEnv('RATE_LIMIT_CREATE_PASTE', 5),
   delete: intEnv('RATE_LIMIT_DELETE', 20),
+  // 打開閱後即焚的貼文（打開就刪除）
+  openPaste: intEnv('RATE_LIMIT_OPEN_PASTE', 20),
   report: intEnv('RATE_LIMIT_REPORT', 5),
   // 貼文預覽圖：Discord 等服務的爬蟲共用少數 IP，所以給高一點；前面有 Cloudflare 快取
   ogImage: intEnv('RATE_LIMIT_OG_IMAGE', 60),

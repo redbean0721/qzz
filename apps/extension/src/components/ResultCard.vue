@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { Check, Copy, KeyRound } from 'lucide-vue-next'
+import { Check, Copy, Flame, KeyRound } from 'lucide-vue-next'
 import { formatExpiry } from '../utils/history'
 
-export type Result = { url: string; rawUrl?: string; expiresAt: string | null; copied: boolean }
+export type Result = { url: string; rawUrl?: string; expiresAt: string | null; copied: boolean; burnAfterReading?: boolean }
 
 defineProps<{ result: Result }>()
 defineEmits<{ copy: [string] }>()
@@ -34,6 +34,10 @@ defineEmits<{ copy: [string] }>()
       <template v-if="result.rawUrl">
         · <a :href="result.rawUrl" target="_blank" rel="noopener" class="underline">raw</a>
       </template>
+    </p>
+    <p v-if="result.burnAfterReading" class="mt-2 flex items-start gap-1.5 text-xs text-sky-700 dark:text-sky-400">
+      <Flame class="mt-0.5 size-3.5 shrink-0" />
+      閱後即焚：第一個打開的人看完就會刪除。直接把網址傳給對方，自己不要打開。
     </p>
     <p class="mt-2 flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-400">
       <KeyRound class="mt-0.5 size-3.5 shrink-0" />

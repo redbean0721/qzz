@@ -109,6 +109,7 @@ test('GET /v1/pastes/:code returns the paste as JSON', async () => {
   assert.equal(body.content, 'console.log(1)')
   assert.equal(body.language, 'javascript')
   assert.equal(body.description, 'console.log(1)')
+  assert.equal(body.burnAfterReading, false)
   assert.ok(!Number.isNaN(Date.parse(body.createdAt)))
 })
 
@@ -202,4 +203,78 @@ test('GET /v1/pastes/:code/og.png renders a 1200x630 PNG', async () => {
   const gone = await app.inject({ method: 'GET', url: `/v1/pastes/${code}/og.png` })
   assert.equal(gone.statusCode, 404)
   assert.equal(gone.headers['cache-control'], 'no-store')
+})
+
+const openPaste = (code: string) => app.inject({ method: 'POST', url: `/v1/pastes/${code}/open` })
+
+test('burn-after-reading pastes hide their content until opened once', async () => {
+  const content = '# secret\n\nonly once'
+  const res = await createPaste({ content, language: 'markdown', burnAfterReading: true })
+  assert.equal(res.statusCode, 201)
+  const { code } = res.json<PasteResponse>()
+
+  // 網址預覽、SSR 只拿得到基本資料
+  const view = await app.inject({ method: 'GET', url: `/v1/pastes/${code}` })
+  assert.equal(view.statusCode, 200)
+  assert.deepEqual(
+    { ...view.json<PasteView>(), createdAt: null, expiresAt: null },
+    { code, content: null, language: 'markdown', description: '', burnAfterReading: true, createdAt: null, expiresAt: null },
+  )
+  for (const url of [`/v1/pastes/${code}/raw`, `/v1/pastes/${code}/og.png`]) {
+    assert.equal((await app.inject({ method: 'GET', url })).statusCode, 404, url)
+  }
+
+  const opened = await openPaste(code)
+  assert.equal(opened.statusCode, 200)
+  assert.equal(opened.headers['cache-control'], 'no-store')
+  const body = opened.json<PasteView>()
+  assert.equal(body.content, content)
+  assert.equal(body.description, 'secret only once')
+  assert.equal(body.burnAfterReading, true)
+
+  // 打開後整列刪除
+  assert.equal((await db.select().from(pastes).where(eq(pastes.code, code))).length, 0)
+  assert.equal((await app.inject({ method: 'GET', url: `/v1/pastes/${code}` })).statusCode, 404)
+  assert.equal((await openPaste(code)).statusCode, 404)
+})
+
+test('a burn-after-reading paste opened twice at once is handed out only once', async () => {
+  const { code } = (await createPaste({ content: 'race', burnAfterReading: true })).json<PasteResponse>()
+  const results = await Promise.all(Array.from({ length: 5 }, () => openPaste(code)))
+  assert.deepEqual(results.map((r) => r.statusCode).sort(), [200, 404, 404, 404, 404])
+})
+
+test('POST /v1/pastes/:code/open only opens active burn-after-reading pastes', async () => {
+  const normal = (await createPaste({ content: 'keep me' })).json<PasteResponse>().code
+  const expired = generateCode()
+  const disabled = generateCode()
+  created.push(expired, disabled)
+  await db.insert(pastes).values([
+    { code: expired, content: 'x', deleteTokenHash: 'x', burnAfterReading: true, expiresAt: new Date(Date.now() - 1000) },
+    { code: disabled, content: 'x', deleteTokenHash: 'x', burnAfterReading: true, disabled: true },
+  ])
+
+  for (const code of [normal, expired, disabled, generateCode(), 'bad-code!']) {
+    assert.equal((await openPaste(code)).statusCode, 404, code)
+  }
+  // 一般貼文不會被刪掉；過期、下架的留給清除和管理員
+  const left = await db.select({ code: pastes.code }).from(pastes).where(inArray(pastes.code, [normal, expired, disabled]))
+  assert.equal(left.length, 3)
+})
+
+test('a burn-after-reading paste can still be deleted with its token before it is opened', async () => {
+  const { code, deleteToken } = (await createPaste({ content: 'oops', burnAfterReading: true })).json<PasteResponse>()
+  const del = await app.inject({
+    method: 'DELETE',
+    url: `/v1/pastes/${code}`,
+    headers: { authorization: `Bearer ${deleteToken}` },
+  })
+  assert.equal(del.statusCode, 204)
+  assert.equal((await openPaste(code)).statusCode, 404)
+})
+
+test('burnAfterReading must be a boolean', async () => {
+  for (const burnAfterReading of ['true', 1, null]) {
+    assert.equal((await createPaste({ content: 'x', burnAfterReading })).statusCode, 400, String(burnAfterReading))
+  }
 })

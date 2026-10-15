@@ -29,35 +29,49 @@ if (error.value || !paste.value) {
   })
 }
 
-// Discord、Threads 等貼上網址時的預覽：標題、開頭的文字（API 產生，Markdown 已拿掉格式符號），和 API 畫的預覽圖
+// Discord、Threads 等貼上網址時的預覽：標題、開頭的文字（API 產生，Markdown 已拿掉格式符號），和 API 畫的預覽圖。
+// 閱後即焚的貼文沒有內容可以預覽（API 不給），只說明打開就會刪除
 const { origin } = useRequestURL()
-const lines = paste.value.content.replace(/\n+$/, '').split('\n').length
 const language = paste.value.language && paste.value.language !== 'text' ? paste.value.language : null
-useSeoMeta({
-  ogType: 'website',
-  ogSiteName: 'qzz.tw',
-  ogUrl: `${origin}/p/${code}`,
-  ogTitle: [`貼文 ${code}`, language, `${lines} 行`].filter(Boolean).join(' · '),
-  ogDescription: paste.value.description,
-  ogImage: `${origin}/v1/pastes/${code}/og.png`,
-  ogImageWidth: 1200,
-  ogImageHeight: 630,
-  ogImageType: 'image/png',
-  ogImageAlt: `貼文 ${code} 開頭幾行的預覽`,
-  twitterCard: 'summary_large_image',
-})
+if (paste.value.content === null) {
+  useSeoMeta({
+    ogType: 'website',
+    ogSiteName: 'qzz.tw',
+    ogUrl: `${origin}/p/${code}`,
+    ogTitle: '閱後即焚的貼文',
+    ogDescription: '第一個打開的人看完就會從伺服器刪除。',
+    twitterCard: 'summary',
+  })
+} else {
+  const lines = paste.value.content.replace(/\n+$/, '').split('\n').length
+  useSeoMeta({
+    ogType: 'website',
+    ogSiteName: 'qzz.tw',
+    ogUrl: `${origin}/p/${code}`,
+    ogTitle: [`貼文 ${code}`, language, `${lines} 行`].filter(Boolean).join(' · '),
+    ogDescription: paste.value.description,
+    ogImage: `${origin}/v1/pastes/${code}/og.png`,
+    ogImageWidth: 1200,
+    ogImageHeight: 630,
+    ogImageType: 'image/png',
+    ogImageAlt: `貼文 ${code} 開頭幾行的預覽`,
+    twitterCard: 'summary_large_image',
+  })
+}
 
 const rawUrl = `/v1/pastes/${code}/raw`
 const reportUrl = { path: '/report', query: { url: `${useRequestURL().origin}/p/${code}` } }
-const lineCount = computed(() => paste.value?.content.split('\n').length ?? 0)
+const content = computed(() => paste.value?.content ?? null)
+const lineCount = computed(() => content.value?.split('\n').length ?? 0)
 const copy = useCopy()
+const toast = useToast()
 
 // 伺服器端先輸出純文字；瀏覽器載入後才下載 Shiki 上色（不佔 Worker 的大小和 CPU）
 const highlighted = ref<string | null>(null)
 let highlighting = false
 async function highlightSource() {
   const current = paste.value
-  if (highlighting || !current || !canHighlight(current.language, current.content)) return
+  if (highlighting || current?.content == null || !canHighlight(current.language, current.content)) return
   highlighting = true
   try {
     highlighted.value = await highlight(current.content, current.language)
@@ -76,9 +90,9 @@ const viewTabs = [
 ]
 const rendered = shallowRef<RenderedMarkdown | null>(null)
 
-onMounted(async () => {
+async function renderContent() {
   const current = paste.value
-  if (!current) return
+  if (current?.content == null) return
   if (!isMarkdown.value) return highlightSource()
   try {
     rendered.value = await renderMarkdown(current.content)
@@ -86,7 +100,26 @@ onMounted(async () => {
     console.warn('markdown rendering failed', err)
     view.value = 'source'
   }
-})
+}
+
+onMounted(renderContent)
+
+// 閱後即焚：按下打開才向 API 拿內容，拿到的同時伺服器就刪掉了，內容只留在這個分頁
+const opening = ref(false)
+const gone = ref(false)
+async function open() {
+  opening.value = true
+  try {
+    paste.value = await $fetch<PasteView>(`/v1/pastes/${code}/open`, { method: 'POST' })
+    await renderContent()
+  } catch (err) {
+    // 404：別人先打開了、建立者刪掉了，或剛好過期
+    if ((err as { statusCode?: number }).statusCode === 404) gone.value = true
+    else toast.add({ title: '打開失敗', description: apiErrorMessage(err), color: 'error' })
+  } finally {
+    opening.value = false
+  }
+}
 
 // 預覽裡的程式碼（utils/markdown.ts 標上 data-copy）：區塊右上角的按鈕、行內程式碼本身，點了就複製原始內容
 function copyTarget(event: Event) {
@@ -126,19 +159,24 @@ watch(view, (value) => {
       <UBadge v-if="paste.language && paste.language !== 'text'" color="neutral" variant="subtle">
         {{ paste.language }}
       </UBadge>
+      <UBadge v-if="paste.burnAfterReading" color="info" variant="subtle" icon="i-lucide-flame">閱後即焚</UBadge>
       <span class="text-sm text-muted">
-        {{ lineCount }} 行 · <ExpiryText :expires-at="paste.expiresAt" />
+        <template v-if="content !== null">{{ lineCount }} 行 · </template>
+        <ExpiryText v-if="!paste.burnAfterReading || content === null" :expires-at="paste.expiresAt" />
+        <template v-else>已從伺服器刪除</template>
       </span>
 
       <div class="ml-auto flex gap-2">
         <UButton
+          v-if="content !== null"
           color="neutral"
           variant="outline"
           icon="i-lucide-copy"
           label="複製"
-          @click="copy(paste.content)"
+          @click="copy(content)"
         />
         <UButton
+          v-if="!paste.burnAfterReading"
           color="neutral"
           variant="outline"
           icon="i-lucide-file-code"
@@ -147,16 +185,43 @@ watch(view, (value) => {
           target="_blank"
           external
         />
-        <!-- 只放圖示：加上文字標頭會擠成兩行 -->
-        <UTooltip text="檢舉這則貼文">
+        <!-- 只放圖示：加上文字標頭會擠成兩行。閱後即焚的打開後就沒了，無從檢舉 -->
+        <UTooltip v-if="!paste.burnAfterReading" text="檢舉這則貼文">
           <UButton color="neutral" variant="ghost" icon="i-lucide-flag" aria-label="檢舉這則貼文" :to="reportUrl" />
         </UTooltip>
         <UButton icon="i-lucide-plus" label="新貼文" to="/" />
       </div>
     </div>
 
+    <template v-if="content === null">
+      <UAlert
+        v-if="gone"
+        color="neutral"
+        variant="subtle"
+        icon="i-lucide-circle-off"
+        title="這則貼文已經不存在"
+        description="可能已經被別人打開過、被建立者刪除，或已過期。"
+      />
+      <UCard v-else variant="subtle" class="text-center">
+        <UIcon name="i-lucide-flame" class="size-8 text-info" />
+        <p class="mt-2 font-semibold">這是閱後即焚的貼文</p>
+        <p class="mt-1 text-sm text-muted">打開後會立刻從伺服器刪除，之後任何人都看不到，包括你自己。</p>
+        <UButton class="mt-4" icon="i-lucide-eye" label="打開貼文" :loading="opening" @click="open" />
+      </UCard>
+    </template>
+
+    <UAlert
+      v-else-if="paste.burnAfterReading"
+      class="mb-4"
+      color="info"
+      variant="subtle"
+      icon="i-lucide-flame"
+      title="這則貼文已從伺服器刪除"
+      description="離開或重新整理這個頁面後就看不到了，需要的話請先複製。"
+    />
+
     <UTabs
-      v-if="isMarkdown"
+      v-if="content !== null && isMarkdown"
       v-model="view"
       :items="viewTabs"
       :content="false"
@@ -175,8 +240,8 @@ watch(view, (value) => {
     />
     <!-- eslint-enable vue/no-v-html -->
     <pre
-      v-else
+      v-else-if="content !== null"
       class="overflow-x-auto rounded-lg border border-default bg-elevated p-4 font-mono text-sm leading-relaxed"
-    ><code v-if="highlighted" class="shiki-code" v-html="highlighted" /><template v-else>{{ paste.content }}</template></pre><!-- eslint-disable-line vue/no-v-html -- Shiki 輸出時已跳脫貼文內容 -->
+    ><code v-if="highlighted" class="shiki-code" v-html="highlighted" /><template v-else>{{ content }}</template></pre><!-- eslint-disable-line vue/no-v-html -- Shiki 輸出時已跳脫貼文內容 -->
   </div>
 </template>

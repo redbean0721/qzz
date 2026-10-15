@@ -21,6 +21,8 @@ export type ContentRow = {
   expired: boolean
   /** 定期重新檢查時被 Safe Browsing 標記的威脅類型（短網址才有） */
   threats: string[] | null
+  /** 閱後即焚的貼文（短網址是 false） */
+  burnAfterReading: boolean
   creatorIp: string | null
   createdAt: Date
 }
@@ -64,6 +66,7 @@ async function selectContent(kind: Kind, where: SQL | undefined, limit: number):
       disabled: table.disabled,
       expired: sql<boolean>`coalesce(${table.expiresAt} <= now(), false)`,
       threats: kind === 'link' ? links.safeBrowsingThreats : sql<null>`null`,
+      burnAfterReading: kind === 'link' ? sql<boolean>`false` : pastes.burnAfterReading,
       creatorIp: table.creatorIp,
       createdAt: table.createdAt,
     })
@@ -228,6 +231,7 @@ export function formatContentRow(row: ContentRow): string {
     row.disabled && '[disabled]',
     row.threats && `[safe browsing: ${row.threats.join(', ')}]`,
     row.expired && '[expired]',
+    row.burnAfterReading && '[burn after reading]',
   ]
     .filter(Boolean)
     .join(' ')

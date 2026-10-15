@@ -70,6 +70,7 @@ export async function describeTarget(target: Target) {
     .select({
       code: pastes.code,
       language: pastes.language,
+      burnAfterReading: pastes.burnAfterReading,
       content: pastes.content,
       disabled: pastes.disabled,
       creatorIp: pastes.creatorIp,
