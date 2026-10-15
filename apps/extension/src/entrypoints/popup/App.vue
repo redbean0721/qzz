@@ -45,14 +45,21 @@ function refreshHistory(change?: Parameters<typeof updateHistory>[0]): Promise<v
   return historyQueue
 }
 
-// 在背景嵌入 qzz.tw 的空白頁，讓 content script 把網站建立的紀錄同步過來（結果從 storage 的變更通知拿到）
+// 在背景嵌入 qzz.tw 的空白頁，讓 content script 把網站建立的紀錄同步過來（結果從 storage 的變更通知拿到）。
+// 等 load 之後才掛上：Chrome 要等彈出視窗的 load（含所有 iframe）才把視窗顯示出來，一開始就放會慢上幾百毫秒
 const syncUrl = `${API_ORIGIN}/sync.html`
+const syncing = ref(false)
+function startSync() {
+  if (document.readyState === 'complete') setTimeout(() => (syncing.value = true))
+  else window.addEventListener('load', () => setTimeout(() => (syncing.value = true)), { once: true })
+}
 
 onMounted(async () => {
   // 先開始監聽再讀：同步用的 iframe 一掛上就在載入，可能在這裡 await 的期間就把網站的紀錄寫進來
   unwatch.push(historyItem.watch(() => void refreshHistory()))
   unwatch.push(historyRemovedItem.watch(() => void refreshHistory()))
   await refreshHistory()
+  startSync()
 
   const pending = await pendingItem.getValue()
   if (pending && Date.now() - pending.at <= PENDING_TTL_MS) {
@@ -172,6 +179,6 @@ const tabClass = (active: boolean) =>
     />
 
     <!-- 同步用，看不到也不能操作 -->
-    <iframe :src="syncUrl" class="hidden" tabindex="-1" aria-hidden="true" title="sync" />
+    <iframe v-if="syncing" :src="syncUrl" class="hidden" tabindex="-1" aria-hidden="true" title="sync" />
   </div>
 </template>
