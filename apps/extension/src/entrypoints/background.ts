@@ -1,20 +1,15 @@
 import { browser, type Browser } from 'wxt/browser'
+import { MENU, MENUS, urlForMenu } from '../utils/menus'
 import { pendingItem, type Pending } from '../utils/pending'
-
-const MENU = {
-  shortenLink: 'qzz-shorten-link',
-  shortenPage: 'qzz-shorten-page',
-  createPaste: 'qzz-create-paste',
-} as const
 
 // Chrome MV3 是 action，Firefox MV2 是 browserAction
 const action = browser.action ?? browser.browserAction
 
 export default defineBackground(() => {
-  browser.runtime.onInstalled.addListener(() => {
-    browser.contextMenus.create({ id: MENU.shortenLink, title: '用 qzz 縮短這個連結', contexts: ['link'] })
-    browser.contextMenus.create({ id: MENU.shortenPage, title: '用 qzz 縮短這個網頁', contexts: ['page'] })
-    browser.contextMenus.create({ id: MENU.createPaste, title: '用 qzz 把選取的文字建立成貼文', contexts: ['selection'] })
+  browser.runtime.onInstalled.addListener(async () => {
+    // 更新版本時也會跑：先清掉舊的項目，避免重複的 id 讓 create 失敗
+    await browser.contextMenus.removeAll()
+    for (const menu of MENUS) browser.contextMenus.create(menu)
   })
 
   browser.contextMenus.onClicked.addListener((info, tab) => {
@@ -49,19 +44,13 @@ async function pendingFrom(
   tab: Browser.tabs.Tab | undefined,
 ): Promise<Pending | null> {
   const at = Date.now()
-  switch (info.menuItemId) {
-    case MENU.shortenLink:
-      return info.linkUrl ? { kind: 'link', url: info.linkUrl, at } : null
-    case MENU.shortenPage:
-      return info.pageUrl ? { kind: 'link', url: info.pageUrl, at } : null
-    case MENU.createPaste: {
-      // selectionText 會把換行變成空白，盡量從頁面讀原始的選取文字
-      const content = (tab?.id !== undefined && (await readSelection(tab.id))) || info.selectionText
-      return content ? { kind: 'paste', content, at } : null
-    }
-    default:
-      return null
+  if (info.menuItemId === MENU.createPaste) {
+    // selectionText 會把換行變成空白，盡量從頁面讀原始的選取文字
+    const content = (tab?.id !== undefined && (await readSelection(tab.id))) || info.selectionText
+    return content ? { kind: 'paste', content, at } : null
   }
+  const url = urlForMenu(info)
+  return url ? { kind: 'link', url, at } : null
 }
 
 async function readSelection(tabId: number): Promise<string | null> {
