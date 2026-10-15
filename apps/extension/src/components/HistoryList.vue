@@ -40,11 +40,21 @@ async function onDelete(item: HistoryItem) {
 </script>
 
 <template>
-  <section v-if="items.length > 0" class="mt-5">
+  <!-- 沒有紀錄時也顯示：不然第一次用的人不知道建立過的會列在這裡 -->
+  <section class="mt-5">
     <h2 class="mb-2 text-xs font-semibold text-zinc-500 dark:text-zinc-400">這個擴充功能建立過的</h2>
     <p v-if="message" class="mb-2 text-xs text-red-600 dark:text-red-400">{{ message }}</p>
 
-    <ul class="max-h-64 divide-y divide-zinc-200 overflow-y-auto rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+    <p
+      v-if="items.length === 0"
+      class="rounded-lg border border-dashed border-zinc-300 px-3 py-3 text-xs leading-relaxed text-zinc-500 dark:border-zinc-700 dark:text-zinc-400"
+    >
+      還沒有建立過短網址或貼文。用這個擴充功能建立的會列在這裡，可以複製或刪除。在 qzz.tw 網站上建立的不會出現在這裡。
+    </p>
+
+    <ul
+      v-else
+      class="max-h-64 divide-y divide-zinc-200 overflow-y-auto rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
       <li v-for="item in items" :key="keyOf(item)" class="flex items-center gap-2 px-3 py-2">
         <Link v-if="item.kind === 'link'" class="size-4 shrink-0 text-zinc-400" />
         <FileText v-else class="size-4 shrink-0 text-zinc-400" />
