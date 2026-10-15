@@ -1,5 +1,5 @@
 import { browser, type Browser } from 'wxt/browser'
-import { pendingItem, type Pending } from '../utils/storage'
+import { pendingItem, type Pending } from '../utils/pending'
 
 const MENU = {
   shortenLink: 'qzz-shorten-link',

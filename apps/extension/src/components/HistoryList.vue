@@ -42,14 +42,15 @@ async function onDelete(item: HistoryItem) {
 <template>
   <!-- 沒有紀錄時也顯示：不然第一次用的人不知道建立過的會列在這裡 -->
   <section class="mt-5">
-    <h2 class="mb-2 text-xs font-semibold text-zinc-500 dark:text-zinc-400">這個擴充功能建立過的</h2>
+    <!-- 包含在 qzz.tw 網站建立的（content script 同步，見 entrypoints/sync.content.ts） -->
+    <h2 class="mb-2 text-xs font-semibold text-zinc-500 dark:text-zinc-400">這個瀏覽器建立過的</h2>
     <p v-if="message" class="mb-2 text-xs text-red-600 dark:text-red-400">{{ message }}</p>
 
     <p
       v-if="items.length === 0"
       class="rounded-lg border border-dashed border-zinc-300 px-3 py-3 text-xs leading-relaxed text-zinc-500 dark:border-zinc-700 dark:text-zinc-400"
     >
-      還沒有建立過短網址或貼文。用這個擴充功能建立的會列在這裡，可以複製或刪除。在 qzz.tw 網站上建立的不會出現在這裡。
+      還沒有建立過短網址或貼文。在這裡或 qzz.tw 網站建立的都會列在這裡，可以複製或刪除。
     </p>
 
     <ul

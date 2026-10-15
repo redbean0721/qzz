@@ -16,6 +16,13 @@ const API_ORIGIN = {
   production: 'https://qzz.tw',
 }
 
+// Firefox 的 match pattern 不能帶 port（http://localhost:3000/* 整條無效），所以只寫主機；
+// content script 自己再檢查 origin（src/utils/api.ts 的 API_MATCH_PATTERN）
+const matchPattern = (origin: string) => {
+  const { protocol, hostname } = new URL(origin)
+  return `${protocol}//${hostname}/*`
+}
+
 export default defineConfig({
   srcDir: 'src',
   modules: ['@wxt-dev/module-vue', '@wxt-dev/auto-icons'],
@@ -62,7 +69,7 @@ export default defineConfig({
       description: '一鍵縮短目前分頁的網址，或把選取的文字建立成貼文。',
       // scripting：右鍵建立貼文時讀取原始選取文字（保留換行）；Firefox MV2 改用 tabs.executeScript
       permissions: ['activeTab', 'contextMenus', 'storage', 'clipboardWrite', ...(browser === 'firefox' ? [] : ['scripting'])],
-      host_permissions: [`${origin}/*`],
+      host_permissions: [matchPattern(origin)],
       action: { default_title: 'qzz – 短網址與貼文' },
       ...(browser === 'firefox' && {
         browser_specific_settings: {

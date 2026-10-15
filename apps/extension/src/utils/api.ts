@@ -8,6 +8,12 @@ import {
 
 export const API_ORIGIN = typeof __API_ORIGIN__ === 'string' ? __API_ORIGIN__ : 'https://qzz.tw'
 
+// manifest 用的 match pattern：Firefox 不接受帶 port 的 pattern，所以只寫主機（開發時會比對到 localhost 的所有 port）
+export const API_MATCH_PATTERN = (() => {
+  const { protocol, hostname } = new URL(API_ORIGIN)
+  return `${protocol}//${hostname}/*`
+})()
+
 export class ApiError extends Error {
   constructor(
     readonly status: number | undefined,

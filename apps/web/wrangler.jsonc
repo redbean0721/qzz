@@ -13,6 +13,11 @@
     // SSR 和短網址轉發連 API 用；Worker 對同 zone 的請求不會再進 Worker，/v1/* 會到 Tunnel 後的 API
     "NUXT_API_BASE": "https://qzz.tw"
   },
+  "assets": {
+    // public/ 裡唯一的 HTML 是擴充功能同步用的 sync.html：照原樣用 /sync.html 提供（預設會 307 轉到 /sync，
+    // 多一個請求，而且 nuxt dev 只認 /sync.html）。binding / directory 由 Nitro 補上
+    "html_handling": "none"
+  },
   "observability": {
     "enabled": true
   }
