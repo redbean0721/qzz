@@ -11,7 +11,7 @@
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
     "typecheck": "wxt prepare && vue-tsc --noEmit",
-    "test": "tsx --test 'src/**/*.test.ts'"
+    "test": "tsx --test 'src/**/*.test.ts' 'scripts/**/*.test.ts'"
   },
   "dependencies": {
     "@qzz/shared": "workspace:*",

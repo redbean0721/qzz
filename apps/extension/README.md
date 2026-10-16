@@ -29,14 +29,18 @@ Run the API (`PUBLIC_BASE_URL=http://localhost:3000`) and `yarn dev:web`, then l
 
 ## Release
 
-1. Bump `version` in `package.json` (stores reject a version they already have) and push to `main`.
+1. Bump `version` in `package.json` (stores reject a version they already have), write its `## <version>` section
+   in `CHANGELOG.md` (the extension tests fail while it is missing) and push to `main`.
 2. The **Extension** workflow (`.github/workflows/extension.yml`, also runnable by hand) typechecks, tests and
    builds, then attaches three artifacts to the run, each uploaded as-is (no extra zip layer):
    `qzz-<version>-firefox.zip`, `qzz-<version>-sources.zip`, `qzz-<version>-chrome.zip` (kept 30 days).
 3. Push a tag `extension-v<version>` on that commit. **Extension release**
    (`.github/workflows/extension-release.yml`) builds again from the tag, checks the tag matches `version`,
-   creates the GitHub release with the three zips (or adds them to a release you already created on that tag),
-   then submits to the stores that are switched on:
+   creates the GitHub release with the three zips and notes built from that CHANGELOG section by
+   `scripts/release-notes.ts` (install links + the section + attachments + compare link; preview locally with
+   `node apps/extension/scripts/release-notes.ts <version>`). A release you already created on that tag gets the
+   zips, and the notes only if its description is empty. Without the section the release job fails and nothing is
+   submitted. Then it submits to the stores that are switched on:
 
    | Store | Repository variable | Environment secrets |
    |---|---|---|

@@ -1,6 +1,7 @@
 name: Extension release
 
-# 推 tag extension-v<版本>：build（重用 extension.yml）→ GitHub Release 附上三個 zip → 送 Chrome Web Store / AMO 審核。
+# 推 tag extension-v<版本>：build（重用 extension.yml）→ GitHub Release（說明來自 apps/extension/CHANGELOG.md，附上三個 zip）
+# → 送 Chrome Web Store / AMO 審核。
 # 要送哪個商店由 repository variables PUBLISH_CHROME / PUBLISH_FIREFOX（= true）決定；金鑰放在各自的 environment secrets。
 # 手動執行（Run workflow）預設是 dry run：只拿金鑰向商店查詢一次確認設定正確，不上傳、不建 release。
 # 不是 tag 的 ref 一律是 dry run，真正送審只會發生在 tag 上
@@ -44,12 +45,23 @@ jobs:
             exit 1
           fi
 
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+
+      # apps/extension/CHANGELOG.md 裡這個版本的那一節 + 固定的開頭和結尾。沒有這一節就在這裡失敗：
+      # 不建 release，chrome / firefox 也不會送審（它們要 release 成功）
+      - name: Write the release notes
+        run: node apps/extension/scripts/release-notes.ts "$VERSION" > "$RUNNER_TEMP/notes.md"
+
       - uses: actions/download-artifact@v8
         with:
           name: extension-zips
           path: zips
 
-      # 在 GitHub 網頁上先建好 release 再推 tag 也可以：已存在就只補上 zip
+      # 在 GitHub 網頁上先建好 release 再推 tag 也可以：已存在就補上 zip，說明是空的才填 CHANGELOG 的內容
       - name: Create or update the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -57,9 +69,12 @@ jobs:
           ls -l zips
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
             gh release upload "$TAG" zips/*.zip --clobber --repo "$GITHUB_REPOSITORY"
+            if [ -z "$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body --jq .body)" ]; then
+              gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes-file "$RUNNER_TEMP/notes.md"
+            fi
           else
             gh release create "$TAG" zips/*.zip --repo "$GITHUB_REPOSITORY" --verify-tag \
-              --title "Extension v$VERSION" --generate-notes
+              --title "Extension v$VERSION" --notes-file "$RUNNER_TEMP/notes.md"
           fi
 
   chrome:
