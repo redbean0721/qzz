@@ -7,6 +7,16 @@ const result = ref<LinkResponse | null>(null)
 
 const history = useHistory()
 const toast = useToast()
+const copy = useCopy()
+const { settings } = useSettings()
+
+// 設定在掛載後才讀到（擴充功能同步過來時也會變）：跟著換預設值。immediate：分頁切過來才掛載的表單
+// 要直接套用已經讀到的設定（SSR 和 hydration 時是預設值，畫面不會不一致）
+watch(
+  () => settings.value.linkExpiresIn,
+  (value) => (state.expiresIn = value),
+  { immediate: true },
+)
 
 async function onSubmit() {
   loading.value = true
@@ -22,6 +32,7 @@ async function onSubmit() {
       expiresAt: res.expiresAt,
     })
     state.url = ''
+    if (settings.value.autoCopy) await copy(res.shortUrl, '已複製短網址', { quiet: true })
   } catch (err) {
     toast.add({ title: '建立失敗', description: apiErrorMessage(err), color: 'error' })
   } finally {

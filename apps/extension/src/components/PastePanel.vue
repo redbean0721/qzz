@@ -1,18 +1,36 @@
 <script setup lang="ts">
 import { MAX_PASTE_BYTES, PASTE_LANGUAGES, createPasteSchema, type ExpiresIn, type PasteResponse } from '@qzz/shared'
 import { LoaderCircle, Send } from 'lucide-vue-next'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { createPaste, fetchLanguages } from '../utils/api'
 import ExpirySelect from './ExpirySelect.vue'
 
 const content = defineModel<string>('content', { required: true })
+const props = defineProps<{ defaults: { language: string; expiresIn: ExpiresIn; burnAfterReading: boolean } }>()
 const emit = defineEmits<{ created: [PasteResponse & { burnAfterReading: boolean }] }>()
 
-const language = ref<string>('text')
 // 先用內建的清單，API 回應後換成伺服器目前支援的（新增語言不用發新版）
 const languages = ref<readonly string[]>(PASTE_LANGUAGES)
-const expiresIn = ref<ExpiresIn>('1d')
-const burnAfterReading = ref(false)
+// 設定裡的語言不在清單上就用純文字
+const supported = (value: string) => (languages.value.includes(value) ? value : 'text')
+const language = ref<string>(supported(props.defaults.language))
+const expiresIn = ref<ExpiresIn>(props.defaults.expiresIn)
+const burnAfterReading = ref(props.defaults.burnAfterReading)
+// 使用者自己選過語言，API 的清單回來時就不再套用設定
+const languageChosen = ref(false)
+// 設定讀到或同步過來時換掉預設值
+watch(
+  () => props.defaults.language,
+  (value) => (language.value = supported(value)),
+)
+watch(
+  () => props.defaults.expiresIn,
+  (value) => (expiresIn.value = value),
+)
+watch(
+  () => props.defaults.burnAfterReading,
+  (value) => (burnAfterReading.value = value),
+)
 const loading = ref(false)
 const error = ref('')
 
@@ -24,7 +42,8 @@ onMounted(async () => {
   const latest = await fetchLanguages()
   if (!latest) return
   languages.value = latest
-  if (!latest.includes(language.value)) language.value = 'text'
+  // 設定的語言可能是內建清單沒有、API 才有的
+  language.value = supported(languageChosen.value ? language.value : props.defaults.language)
 })
 
 async function submit() {
@@ -80,6 +99,7 @@ async function submit() {
         語言
         <select
           v-model="language"
+          @change="languageChosen = true"
           class="rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
         >
           <option v-for="value in languages" :key="value" :value="value">

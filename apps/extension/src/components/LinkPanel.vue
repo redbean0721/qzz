@@ -1,14 +1,20 @@
 <script setup lang="ts">
 import { createLinkSchema, type ExpiresIn, type LinkResponse } from '@qzz/shared'
 import { LoaderCircle, Scissors } from 'lucide-vue-next'
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { createLink } from '../utils/api'
 import ExpirySelect from './ExpirySelect.vue'
 
 const url = defineModel<string>('url', { required: true })
+const props = defineProps<{ defaultExpiresIn: ExpiresIn }>()
 const emit = defineEmits<{ created: [LinkResponse] }>()
 
-const expiresIn = ref<ExpiresIn>('1d')
+const expiresIn = ref<ExpiresIn>(props.defaultExpiresIn)
+// 設定讀到或同步過來時換掉預設值
+watch(
+  () => props.defaultExpiresIn,
+  (value) => (expiresIn.value = value),
+)
 const loading = ref(false)
 const error = ref('')
 

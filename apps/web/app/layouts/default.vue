@@ -5,7 +5,12 @@
         <NuxtLink to="/" class="font-mono text-xl font-bold">
           qzz<span class="text-primary">.tw</span>
         </NuxtLink>
-        <UColorModeButton />
+        <div class="flex items-center gap-1">
+          <UTooltip text="設定">
+            <UButton to="/settings" color="neutral" variant="ghost" icon="i-lucide-settings" aria-label="設定" />
+          </UTooltip>
+          <UColorModeButton />
+        </div>
       </div>
     </header>
 

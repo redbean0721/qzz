@@ -2,11 +2,12 @@
 import { EXPIRES_IN, EXPIRES_IN_LABELS, type ExpiresIn } from '@qzz/shared'
 
 const model = defineModel<ExpiresIn>({ required: true })
+const { label = '有效期限' } = defineProps<{ label?: string }>()
 </script>
 
 <template>
   <label class="flex flex-col gap-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">
-    有效期限
+    {{ label }}
     <select
       v-model="model"
       class="rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"

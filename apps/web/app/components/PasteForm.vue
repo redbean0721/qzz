@@ -25,6 +25,28 @@ const result = ref<(PasteResponse & { burnAfterReading: boolean }) | null>(null)
 
 const history = useHistory()
 const toast = useToast()
+const copy = useCopy()
+const { settings } = useSettings()
+
+// 設定在掛載後才讀到（擴充功能同步過來時也會變）：跟著換預設值。immediate：分頁切過來才掛載的表單
+// 要直接套用已經讀到的設定（SSR 和 hydration 時是預設值，畫面不會不一致）。設定裡的語言這個版本不認得就用純文字
+const isLanguage = (value: string): value is (typeof PASTE_LANGUAGES)[number] =>
+  (PASTE_LANGUAGES as readonly string[]).includes(value)
+watch(
+  () => settings.value.pasteLanguage,
+  (value) => (state.language = isLanguage(value) ? value : 'text'),
+  { immediate: true },
+)
+watch(
+  () => settings.value.pasteExpiresIn,
+  (value) => (state.expiresIn = value),
+  { immediate: true },
+)
+watch(
+  () => settings.value.burnAfterReading,
+  (value) => (state.burnAfterReading = value),
+  { immediate: true },
+)
 
 const encoder = new TextEncoder()
 const bytes = computed(() => encoder.encode(state.content).length)
@@ -44,6 +66,7 @@ async function onSubmit() {
       ...(state.burnAfterReading && { burnAfterReading: true }),
     })
     state.content = ''
+    if (settings.value.autoCopy) await copy(res.url, '已複製貼文網址', { quiet: true })
   } catch (err) {
     toast.add({ title: '建立失敗', description: apiErrorMessage(err), color: 'error' })
   } finally {

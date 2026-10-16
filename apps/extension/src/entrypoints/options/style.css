@@ -1,0 +1,9 @@
+@import "tailwindcss";
+
+html {
+  color-scheme: light dark;
+}
+
+body {
+  @apply bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100;
+}

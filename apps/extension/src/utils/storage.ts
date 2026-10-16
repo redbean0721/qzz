@@ -1,11 +1,19 @@
 import {
   mergeHistory,
+  mergeSettings,
   parseHistoryItems,
   parseHistoryRemovals,
+  parseStoredSettings,
+  resolveSettings,
   sameHistory,
+  sameSettings,
+  withSetting,
   type HistoryItem,
   type HistoryRemoval,
   type HistoryState,
+  type SettingKey,
+  type Settings,
+  type StoredSettings,
 } from '@qzz/shared'
 import { storage } from 'wxt/utils/storage'
 
@@ -40,4 +48,31 @@ export async function updateHistory(change: (state: HistoryState) => HistoryStat
 /** 跟網站的紀錄合併（呼叫的人要先過濾掉不是這個網站網址的項目）：寫回這邊，回傳合併後的結果 */
 export async function mergeIntoHistory(other: HistoryState): Promise<HistoryState> {
   return updateHistory((current) => mergeHistory([current, other]))
+}
+
+// 偏好設定：改過的設定和修改時間（@qzz/shared 的 settings），在 qzz.tw 上跟網站的設定同步
+export const settingsItem = storage.defineItem<StoredSettings>('local:settings', { fallback: {} })
+
+export async function loadStoredSettings(): Promise<StoredSettings> {
+  return parseStoredSettings(await settingsItem.getValue())
+}
+
+export async function loadSettings(): Promise<Settings> {
+  return resolveSettings(await loadStoredSettings())
+}
+
+async function updateStoredSettings(change: (stored: StoredSettings) => StoredSettings): Promise<StoredSettings> {
+  const current = await loadStoredSettings()
+  const next = mergeSettings([change(current)])
+  if (!sameSettings(next, current)) await settingsItem.setValue(JSON.parse(JSON.stringify(next)) as StoredSettings)
+  return next
+}
+
+export async function saveSetting<K extends SettingKey>(key: K, value: Settings[K]): Promise<Settings> {
+  return resolveSettings(await updateStoredSettings((stored) => withSetting(stored, key, value)))
+}
+
+/** 跟網站的設定合併：寫回這邊，回傳合併後的結果（由 content script 寫回網站） */
+export async function mergeIntoSettings(other: StoredSettings): Promise<StoredSettings> {
+  return updateStoredSettings((current) => mergeSettings([current, other]))
 }
